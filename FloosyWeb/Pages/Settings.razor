@@ -2,27 +2,126 @@
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@using Blazored.LocalStorage
-@inject ISyncLocalStorageService LocalStorage
 
-<div style="padding: 20px;">
-    <div style="text-align:center; margin-bottom:30px;">
-        <h2 style="margin:0;">@Firebase.GetUserName()</h2>
-        <p style="color:#00E676;">@Firebase.UserEmail</p>
+<div style="padding: 20px; padding-bottom: 80px;">
+    <h3 style="margin-bottom:20px;">Settings ⚙️</h3>
+
+    <div class="setting-card">
+        <label>Display Name</label>
+        <div style="display:flex; gap:10px;">
+            <input @bind="newName" class="input-dark" placeholder="@Firebase.GetUserName()" />
+            <button class="btn-small" @onclick="UpdateName">Save</button>
+        </div>
     </div>
 
-    <button style="background:transparent; color:gray; border:none; margin-top:20px; width:100%; padding:15px; cursor:pointer;"
-            @onclick="SignOut">
-        Sign Out
-    </button>
+    <div class="setting-card">
+        <label>Change Password</label>
+        <div style="display:flex; gap:10px;">
+            <input @bind="newPass" type="password" class="input-dark" placeholder="New Password" />
+            <button class="btn-small" @onclick="UpdatePass">Update</button>
+        </div>
+    </div>
+
+    <div class="setting-card">
+        <label>Support</label>
+        <a href="https://wa.me/201xxxxxxxxx" target="_blank" class="btn-whatsapp">
+            <span style="font-size:18px;">💬</span> Contact via WhatsApp
+        </a>
+    </div>
+
+    <button class="btn-logout" @onclick="SignOut">Sign Out</button>
+
+    <div style="text-align:center; color:gray; font-size:12px; margin-top:30px;">
+        Floosy v1.0 <br /> by Adham Mohamed
+    </div>
 </div>
 
+<style>
+    .setting-card {
+        background: #1f1f1f;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        border: 1px solid #333;
+    }
+
+        .setting-card label {
+            display: block;
+            color: #00E676;
+            font-size: 12px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+    .input-dark {
+        flex: 1;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .btn-small {
+        background: #00E676;
+        color: black;
+        border: none;
+        padding: 0 15px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-whatsapp {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: #25D366;
+        color: white;
+        text-decoration: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+
+    .btn-logout {
+        width: 100%;
+        background: transparent;
+        border: 1px solid #e74c3c;
+        color: #e74c3c;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+</style>
+
 @code {
+    string newName = "";
+    string newPass = "";
+
+    async Task UpdateName()
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        await Firebase.UpdateUserName(newName);
+        await JS.InvokeVoidAsync("alert", "Name updated! Re-login to see changes.");
+        newName = "";
+    }
+
+    async Task UpdatePass()
+    {
+        if (string.IsNullOrWhiteSpace(newPass)) return;
+        var res = await Firebase.ChangePassword(newPass);
+        await JS.InvokeVoidAsync("alert", res);
+        newPass = "";
+    }
+
     void SignOut()
     {
-        Firebase.SignOut(); // Clear Service
-        LocalStorage.Clear(); // Clear "Remember Me"
-        Nav.NavigateTo("/", forceLoad: true); // Go to Login & Refresh
+        Firebase.SignOut();
+        Nav.NavigateTo("/", forceLoad: true);
     }
-    // ... Other functions same as before
 }

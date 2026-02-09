@@ -16,15 +16,20 @@
     </div>
 
     <div style="margin-bottom:5px; font-size:12px; color:gray;">Income vs Expense (This Month)</div>
+
     <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
         @if (MonthIncome + MonthExpense > 0)
         {
-            <div style="background:#2ecc71; width:@(IncomePct)%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">@IncomePct.ToString("0")%</div>
-            <div style="background:#e74c3c; width:@(ExpensePct)%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">@ExpensePct.ToString("0")%</div>
+            // 🔥 FIXED: CSS Warnings solved by using interpolated strings
+            <div style="@($"width:{IncomePct}%; background:#2ecc71; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;")">
+                @IncomePct.ToString("0")%
+            </div>
+            <div style="@($"width:{ExpensePct}%; background:#e74c3c; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;")">
+                @ExpensePct.ToString("0")%
+            </div>
         }
         else
         {
-
             <div style="width:100%; text-align:center; color:gray; line-height:30px;">No Data</div>
         }
     </div>
@@ -35,8 +40,14 @@
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false">Income Charts</button>
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true">Expense Charts</button>
+        <button style="@($"flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:{(isExpense ? "#333" : "#2ecc71")}; color:{(isExpense ? "white" : "black")};")"
+                @onclick="() => isExpense = false">
+            Income Charts
+        </button>
+        <button style="@($"flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:{(isExpense ? "#e74c3c" : "#333")}; color:white;")"
+                @onclick="() => isExpense = true">
+            Expense Charts
+        </button>
     </div>
 
     @if (ChartData.Any())
@@ -49,7 +60,7 @@
                     <span style="color:gray;">@item.AmountStr</span>
                 </div>
                 <div style="width:100%; background:#333; height:10px; border-radius:5px;">
-                    <div style="width:@(item.Pct * 100)%; background:@item.Color; height:100%; border-radius:5px; transition: width 0.5s;"></div>
+                    <div style="@($"width:{item.Pct * 100}%; background:{item.Color}; height:100%; border-radius:5px; transition: width 0.5s;")"></div>
                 </div>
             </div>
         }
@@ -66,7 +77,7 @@
     bool isExpense = true;
     List<string> AvailableMonths = new List<string>();
 
-    // 🔥 FIX: Parsing Logic
+    // 🔥 Logic: Use Amount if available, otherwise fallback to parsing AmountDisplay
     decimal MonthIncome => myData.History
         .Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("+"))
         .Sum(x => x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay));
@@ -86,7 +97,11 @@
     double IncomePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthIncome / (MonthIncome + MonthExpense)) * 100);
     double ExpensePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthExpense / (MonthIncome + MonthExpense)) * 100);
 
-    protected override async Task OnInitializedAsync() { for (int i = 0; i < 12; i++) { AvailableMonths.Add(DateTime.Now.AddMonths(-i).ToString("MMMM yyyy")); } myData = await Firebase.Load(); }
+    protected override async Task OnInitializedAsync()
+    {
+        for (int i = 0; i < 12; i++) { AvailableMonths.Add(DateTime.Now.AddMonths(-i).ToString("MMMM yyyy")); }
+        myData = await Firebase.Load();
+    }
 
     List<ChartItem> ChartData
     {
@@ -98,13 +113,20 @@
                 .ToList();
 
             double total = filtered.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay)));
+
             if (total == 0) return new List<ChartItem>();
 
             return filtered.GroupBy(x => x.Category ?? "Other")
                 .Select(g =>
                 {
                     double val = g.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay)));
-                    return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" };
+                    return new ChartItem
+                    {
+                        Name = g.Key,
+                        AmountStr = val.ToString("N2"),
+                        Pct = val / total,
+                        Color = isExpense ? "#e74c3c" : "#2ecc71"
+                    };
                 })
                 .OrderByDescending(x => x.Pct)
                 .ToList();
