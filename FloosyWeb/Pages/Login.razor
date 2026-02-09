@@ -26,6 +26,7 @@ else
 }
 
 <style>
+    /* El-CSS zai ma howa... */
     .input-dark {
         width: 100%;
         background: #333;
@@ -55,22 +56,20 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Check if we have saved credentials
         var savedEmail = LocalStorage.GetItem<string>("SavedEmail");
         var savedPass = LocalStorage.GetItem<string>("SavedPass");
 
         if (!string.IsNullOrEmpty(savedEmail) && !string.IsNullOrEmpty(savedPass))
         {
-            // Auto Login
             var res = await Firebase.Login(savedEmail, savedPass);
             if (res == "Success")
             {
-                Nav.NavigateTo("/home");
+                // ✅ Fix 1: Sheelna el slash '/'
+                Nav.NavigateTo("home");
                 return;
             }
         }
-
-        isCheckingAuth = false; // Show Login Screen
+        isCheckingAuth = false;
     }
 
     async Task DoLogin()
@@ -88,12 +87,12 @@ else
                 LocalStorage.RemoveItem("SavedEmail");
                 LocalStorage.RemoveItem("SavedPass");
             }
-            Nav.NavigateTo("/home");
+            // ✅ Fix 2: Sheelna el slash '/'
+            Nav.NavigateTo("home");
         }
         else
         {
             await JS.InvokeVoidAsync("alert", res);
         }
     }
-    // ... Register Logic ...
 }
