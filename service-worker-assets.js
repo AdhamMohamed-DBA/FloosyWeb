@@ -1,5 +1,5 @@
 self.assetsManifest = {
-  "version": "9lJuHKVN",
+  "version": "++uxwdu3",
   "assets": [
     {
       "hash": "sha256-cVAxLiUb8qzzOCkXKHPqqYyCUTBYWMeHuxWMBiceDLc=",
@@ -14,8 +14,8 @@ self.assetsManifest = {
       "url": "_framework/Firebase.t4bnb5qp2s.wasm"
     },
     {
-      "hash": "sha256-EshCar5uSERIYrwKwvPPcBqowheoIHy+hlmtV4ngcbs=",
-      "url": "_framework/FloosyWeb.28vkla5gct.wasm"
+      "hash": "sha256-TS0CD99p5ONixkRVjiJbTeVVRiO9FeqE4v0khvz/uC4=",
+      "url": "_framework/FloosyWeb.9lloyi4i5m.wasm"
     },
     {
       "hash": "sha256-pxLAT04Ri3sXh90k2oyjIWa23sypM4IByhgj1e5eOjA=",
@@ -270,6 +270,10 @@ self.assetsManifest = {
       "url": "_framework/blazor.webassembly.66stpp682q.js"
     },
     {
+      "hash": "sha256-bf1GWEbedHlxbLvjyGrsYXruqxxCEutR0PVSDbQZEW0=",
+      "url": "_framework/dotnet.1v96uaoblr.js"
+    },
+    {
       "hash": "sha256-zE11fbcG2CeLl1Zi+NJgMOfWpdjuUWNte+icrtAO58I=",
       "url": "_framework/dotnet.native.87vtjjdetb.js"
     },
@@ -280,10 +284,6 @@ self.assetsManifest = {
     {
       "hash": "sha256-2lZh9yO0fnzm3Xt7yV+Kox3DH3nK7L8hDhm84VT1xco=",
       "url": "_framework/dotnet.runtime.2tx45g8lli.js"
-    },
-    {
-      "hash": "sha256-cAJ4P3FfAHZfaBp60Hn/zyIR1FRiFYW/Bo5aiwP478s=",
-      "url": "_framework/dotnet.sdo4axonon.js"
     },
     {
       "hash": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
@@ -330,7 +330,7 @@ self.assetsManifest = {
       "url": "images/setting.png"
     },
     {
-      "hash": "sha256-HwVqmTJrDcFDg3bhGRnKfVPGOiCClZ8VqW6Jz0QHz2g=",
+      "hash": "sha256-FMAir8S3uLqdpIufcXVMh07PHmah/Fygf6h78k3mtuQ=",
       "url": "index.html"
     },
     {
@@ -510,12 +510,8 @@ self.assetsManifest = {
       "url": "lib/bootstrap/dist/js/bootstrap.min.js.map"
     },
     {
-      "hash": "sha256-xIrGLxezMZbWN92UfFD/S6Cys2j7b7pfWjcRszwjpyk=",
+      "hash": "sha256-i/ksYz5slInw1R+ITlJZW/SRt+NBEsu3rGHOOlmWMRs=",
       "url": "manifest.webmanifest"
-    },
-    {
-      "hash": "sha256-paIeuWnSzjeLGITWkk4p3rcejUsZWCJGPeOK9UhWXtg=",
-      "url": "sample-data/weather.json"
     }
   ]
 };
