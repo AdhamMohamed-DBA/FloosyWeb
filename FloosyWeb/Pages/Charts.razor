@@ -19,34 +19,24 @@
     <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
         @if (MonthIncome + MonthExpense > 0)
         {
-            <div style="background:#2ecc71; width:@(IncomePct)%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">
-                @IncomePct.ToString("0")%
-            </div>
-            <div style="background:#e74c3c; width:@(ExpensePct)%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">
-                @ExpensePct.ToString("0")%
-            </div>
+            <div style="background:#2ecc71; width:@(IncomePct)%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">@IncomePct.ToString("0")%</div>
+            <div style="background:#e74c3c; width:@(ExpensePct)%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">@ExpensePct.ToString("0")%</div>
         }
         else
         {
+
             <div style="width:100%; text-align:center; color:gray; line-height:30px;">No Data</div>
         }
     </div>
+
     <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:20px;">
         <span style="color:#2ecc71;">+@MonthIncome.ToString("N0")</span>
         <span style="color:#e74c3c;">-@MonthExpense.ToString("N0")</span>
     </div>
 
-    <hr style="border-color:#333; margin-bottom:20px;" />
-
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");"
-                @onclick="() => isExpense = false">
-            Income Charts
-        </button>
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;"
-                @onclick="() => isExpense = true">
-            Expense Charts
-        </button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false">Income Charts</button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true">Expense Charts</button>
     </div>
 
     @if (ChartData.Any())
@@ -76,43 +66,45 @@
     bool isExpense = true;
     List<string> AvailableMonths = new List<string>();
 
-    // FIX 1: Null Safety for AmountDisplay using (?? "0")
-    decimal MonthIncome => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => decimal.Parse((x.AmountDisplay ?? "0").Replace("+", "")));
-    decimal MonthExpense => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => decimal.Parse((x.AmountDisplay ?? "0").Replace("-", "")));
+    // 🔥 FIX: Parsing Logic
+    decimal MonthIncome => myData.History
+        .Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("+"))
+        .Sum(x => x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay));
+
+    decimal MonthExpense => myData.History
+        .Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("-"))
+        .Sum(x => x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay));
+
+    decimal ParseAmount(string? display)
+    {
+        if (string.IsNullOrEmpty(display)) return 0;
+        string clean = display.Replace("+", "").Replace("-", "");
+        if (decimal.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result)) return result;
+        return 0;
+    }
 
     double IncomePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthIncome / (MonthIncome + MonthExpense)) * 100);
     double ExpensePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthExpense / (MonthIncome + MonthExpense)) * 100);
 
-    protected override async Task OnInitializedAsync()
-    {
-        for (int i = 0; i < 12; i++) { AvailableMonths.Add(DateTime.Now.AddMonths(-i).ToString("MMMM yyyy")); }
-        myData = await Firebase.Load();
-    }
+    protected override async Task OnInitializedAsync() { for (int i = 0; i < 12; i++) { AvailableMonths.Add(DateTime.Now.AddMonths(-i).ToString("MMMM yyyy")); } myData = await Firebase.Load(); }
 
     List<ChartItem> ChartData
     {
         get
         {
-            // FIX 2: Null Safety inside LINQ
             var filtered = myData.History
                 .Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth &&
                             (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+")))
                 .ToList();
 
-            double total = filtered.Sum(x => double.Parse((x.AmountDisplay ?? "0").Replace("-", "").Replace("+", "")));
+            double total = filtered.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay)));
             if (total == 0) return new List<ChartItem>();
 
             return filtered.GroupBy(x => x.Category ?? "Other")
                 .Select(g =>
                 {
-                    double val = g.Sum(x => double.Parse((x.AmountDisplay ?? "0").Replace("-", "").Replace("+", "")));
-                    return new ChartItem
-                    {
-                        Name = g.Key,
-                        AmountStr = val.ToString("N2"),
-                        Pct = val / total,
-                        Color = isExpense ? "#e74c3c" : "#2ecc71"
-                    };
+                    double val = g.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay)));
+                    return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" };
                 })
                 .OrderByDescending(x => x.Pct)
                 .ToList();

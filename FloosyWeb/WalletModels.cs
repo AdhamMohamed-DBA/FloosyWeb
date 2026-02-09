@@ -1,6 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 
-namespace FloosyWeb.Models; // 8ayar el namespace law me7tag
+namespace FloosyWeb.Models;
 
 public class AppData
 {
@@ -41,6 +41,9 @@ public class Transaction
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string? Desc { get; set; }
     public string Category { get; set; } = "Other";
+
+    // 🔥 ADDED: Original Amount for calculation safety
+    public decimal Amount { get; set; }
     public string? AmountDisplay { get; set; }
     public string? ColorHex { get; set; }
     public DateTime Date { get; set; } = DateTime.Now;

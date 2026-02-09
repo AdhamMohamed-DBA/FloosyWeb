@@ -22,7 +22,7 @@
 
     @foreach (var bill in myData.Bills.OrderBy(x => x.IsPaid).ThenBy(x => x.DueDate))
     {
-        <div style="background:#1f1f1f; padding:20px; border-left: 6px solid @(bill.IsPaid ? "#2ecc71" : "#e74c3c"); margin-bottom:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+        <div style="background:#1f1f1f; padding:20px; border-left: 6px solid @(bill.IsPaid ? "#2ecc71" : "#e74c3c"); margin-bottom:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
             <div style="flex:1;">
                 <div style="font-weight:900; font-size:1.2em; color:white;">@bill.Name</div>
                 <div style="font-size:0.9em; color:#bbb;">@bill.Category • @bill.DueDate.ToString("dd MMM")</div>
@@ -36,7 +36,12 @@
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     @if (!bill.IsPaid)
                     {
-                        <button style="background:#ff9800; color:black; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" @onclick="() => PayBill(bill)">Pay</button>
+                        <button style="background:#ff9800; color:black; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" @onclick="() => InitiatePayBill(bill)">Pay</button>
+                    }
+                    else
+                    {
+
+                        <span style="color:#2ecc71; font-size:12px; font-weight:bold;">PAID</span>
                     }
                     <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => DeleteBill(bill)">🗑️</button>
                 </div>
@@ -44,6 +49,27 @@
         </div>
     }
 </div>
+
+@if (isPayModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Pay Bill: @selectedBillToPay?.Name</h3>
+            <p style="color:gray;">Amount: @selectedBillToPay?.Amount.ToString("N2")</p>
+            <label>Pay from Account:</label>
+            <select @bind="payFromAccountId" class="input-dark">
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">@acc.Name (@acc.Balance.ToString("N0"))</option>
+                }
+            </select>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn-primary" @onclick="ConfirmPayBill" style="flex:1;">Confirm Pay</button>
+                <button class="btn-trans" @onclick="() => isPayModalVisible = false" style="flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
 
 <style>
     .input-dark {
@@ -54,7 +80,6 @@
         padding: 12px;
         border-radius: 8px;
         margin-bottom: 10px;
-        box-sizing: border-box;
     }
 
     .btn-primary {
@@ -66,14 +91,80 @@
         font-weight: bold;
         cursor: pointer;
     }
+
+    .btn-trans {
+        background: transparent;
+        color: gray;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 350px;
+        background: #1f1f1f;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+    }
 </style>
 
 @code {
     AppData myData = new AppData();
     Bill newBill = new Bill { DueDate = DateTime.Now };
+    bool isPayModalVisible = false;
+    Bill? selectedBillToPay;
+    string payFromAccountId = "";
+
     protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
     async Task AddBill() { if (!string.IsNullOrEmpty(newBill.Name)) { myData.Bills.Add(newBill); await Firebase.Save(myData); newBill = new Bill { DueDate = DateTime.Now }; } }
     async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); } }
-    // PayBill logic same as before (Modal or Direct) - simplified here for brevity
-    async Task PayBill(Bill b) { b.IsPaid = true; await Firebase.Save(myData); }
+
+    void InitiatePayBill(Bill b)
+    {
+        if (!myData.Accounts.Any()) { return; }
+        selectedBillToPay = b;
+        payFromAccountId = myData.Accounts.First().Id;
+        isPayModalVisible = true;
+    }
+
+    async Task ConfirmPayBill()
+    {
+        if (selectedBillToPay == null) return;
+        var acc = myData.Accounts.FirstOrDefault(x => x.Id == payFromAccountId);
+        if (acc != null)
+        {
+            if (acc.Balance < selectedBillToPay.Amount) { await JS.InvokeVoidAsync("alert", "Insufficient balance!"); return; }
+
+            acc.Balance -= selectedBillToPay.Amount; // Deduct Balance
+            myData.History.Add(new Transaction
+            {
+                Desc = $"Paid Bill: {selectedBillToPay.Name}",
+                Category = "Bills",
+                Amount = selectedBillToPay.Amount, // ✅ NEW FIELD
+                AmountDisplay = $"-{selectedBillToPay.Amount:N2}",
+                ColorHex = "#e74c3c",
+                Date = DateTime.Now
+            });
+
+            selectedBillToPay.IsPaid = true;
+            selectedBillToPay.PaymentDate = DateTime.Now;
+            await Firebase.Save(myData);
+            isPayModalVisible = false;
+        }
+    }
 }

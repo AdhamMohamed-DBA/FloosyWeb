@@ -26,7 +26,6 @@ else
 }
 
 <style>
-    /* El-CSS zai ma howa... */
     .input-dark {
         width: 100%;
         background: #333;
@@ -64,8 +63,7 @@ else
             var res = await Firebase.Login(savedEmail, savedPass);
             if (res == "Success")
             {
-                // ✅ Fix 1: Sheelna el slash '/'
-                Nav.NavigateTo("home");
+                Nav.NavigateTo("home"); // ✅ FIXED
                 return;
             }
         }
@@ -77,22 +75,11 @@ else
         var res = await Firebase.Login(email, password);
         if (res == "Success")
         {
-            if (rememberMe)
-            {
-                LocalStorage.SetItem("SavedEmail", email);
-                LocalStorage.SetItem("SavedPass", password);
-            }
-            else
-            {
-                LocalStorage.RemoveItem("SavedEmail");
-                LocalStorage.RemoveItem("SavedPass");
-            }
-            // ✅ Fix 2: Sheelna el slash '/'
-            Nav.NavigateTo("home");
+            if (rememberMe) { LocalStorage.SetItem("SavedEmail", email); LocalStorage.SetItem("SavedPass", password); }
+            else { LocalStorage.RemoveItem("SavedEmail"); LocalStorage.RemoveItem("SavedPass"); }
+
+            Nav.NavigateTo("home"); // ✅ FIXED
         }
-        else
-        {
-            await JS.InvokeVoidAsync("alert", res);
-        }
+        else { await JS.InvokeVoidAsync("alert", res); }
     }
 }
