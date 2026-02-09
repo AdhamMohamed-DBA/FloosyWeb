@@ -5,10 +5,8 @@
 		<AssemblyName>FloosyWeb</AssemblyName>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
 		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
 		<BlazorCacheBootResources>false</BlazorCacheBootResources>
-		<BlazorServiceWorkerAssetsManifest>service-worker-assets.js</BlazorServiceWorkerAssetsManifest>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -21,12 +19,6 @@
 
 	<ItemGroup>
 		<ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Update="wwwroot\**\*.*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
 	</ItemGroup>
 
 </Project>
