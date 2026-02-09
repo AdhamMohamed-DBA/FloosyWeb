@@ -1,0 +1,35 @@
+name: Deploy .NET 10 App
+
+on:
+  push:
+    branches: [ master ] # Aw 'main' law esm el branch beta3k main
+
+jobs:
+  deploy-to-github-pages:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    # 1. HENA EL SER: Bn2olo nazzel .NET 10 bel-3afya
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '10.0.x'
+        include-prerelease: true
+
+    # 2. Publish (Tbkh el code)
+    - name: Publish .NET 10 Project
+      # 8ayar 'FloosyWeb/FloosyWeb.csproj' law makan el file mo5talef
+      run: dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release --nologo
+
+    # 3. Fix 404 Error
+    - name: Fix 404 on Refresh
+      run: cp release/wwwroot/index.html release/wwwroot/404.html
+
+    # 4. Erfa3 3la GitHub Pages
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: gh-pages
+        folder: release/wwwroot
+
