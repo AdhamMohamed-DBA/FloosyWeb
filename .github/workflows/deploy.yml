@@ -21,7 +21,10 @@ jobs:
     - name: Publish
       run: |
         dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release --nologo /p:GHPages=true
+        # Bey-mna3 GitHub mn eno y-7-geb folderat el-framework
         touch release/wwwroot/.nojekyll
+        # Dah el-7al le-moshkelet el-404 lamma t-yeb2a fe /home
+        cp release/wwwroot/index.html release/wwwroot/404.html
 
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@v4
