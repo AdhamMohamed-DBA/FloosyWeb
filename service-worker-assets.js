@@ -1,5 +1,5 @@
 self.assetsManifest = {
-  "version": "U1AajOrK",
+  "version": "HfZ9bXWm",
   "assets": [
     {
       "hash": "sha256-cVAxLiUb8qzzOCkXKHPqqYyCUTBYWMeHuxWMBiceDLc=",
@@ -14,8 +14,8 @@ self.assetsManifest = {
       "url": "_framework/Firebase.t4bnb5qp2s.wasm"
     },
     {
-      "hash": "sha256-n+Lr5/4w2uSJou+m47WB0W8MEQ/tB+BSqOgtpgN/WAQ=",
-      "url": "_framework/FloosyWeb.t1up1ajiv0.wasm"
+      "hash": "sha256-Nr/VblwFOkcm4fIUZ9Vn0WounBAZqIm0VXijIsIPSMk=",
+      "url": "_framework/FloosyWeb.af14jfxdyk.wasm"
     },
     {
       "hash": "sha256-pxLAT04Ri3sXh90k2oyjIWa23sypM4IByhgj1e5eOjA=",
@@ -26,8 +26,8 @@ self.assetsManifest = {
       "url": "_framework/Microsoft.AspNetCore.Components.8yu28nribz.wasm"
     },
     {
-      "hash": "sha256-NBBZU7na3yvzWvhSIyVKWz9clSC+73LcPAFNIZM7nTc=",
-      "url": "_framework/Microsoft.AspNetCore.Components.Web.sg7g2l754d.wasm"
+      "hash": "sha256-4uZDg8mXVF/KhvuvAuH2Kgpw+3NjVgAPZD1G9scIBiw=",
+      "url": "_framework/Microsoft.AspNetCore.Components.Web.6avfxro9u7.wasm"
     },
     {
       "hash": "sha256-EbGYPB0VoEChQ42gJbXXdUGpOgSXdFcPA/Qj0Utlk+E=",
@@ -270,7 +270,7 @@ self.assetsManifest = {
       "url": "_framework/blazor.webassembly.js"
     },
     {
-      "hash": "sha256-KkOwr/29K91UMG0UTjxTaK+W6uOvkSj0jIWI3Rr9fso=",
+      "hash": "sha256-rxzxhAHYblLC3weXQDHEzrkKgyax+oJKHPtRUKblc1k=",
       "url": "_framework/dotnet.js"
     },
     {
