@@ -27,21 +27,12 @@
     </div>
 
     <div style="display:flex; flex-direction:column; gap:10px;">
-        @if (myData.Accounts.Any())
+        @foreach (var acc in myData.Accounts.OrderBy(x => x.SortOrder))
         {
-            @foreach (var acc in myData.Accounts.OrderBy(x => x.SortOrder))
-            {
-                <div style="background-color:@acc.ColorHex; padding:20px; border-radius:15px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; color:white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
-                     @onclick="() => OpenAccountOptions(acc)">
-                    <span style="font-weight:bold; font-size:1.2em;">@acc.Name</span>
-                    <span style="font-weight:bold; font-size:1.4em;">@acc.Balance.ToString("N2")</span>
-                </div>
-            }
-        }
-        else
-        {
-            <div style="text-align:center; padding:20px; color:gray; border:1px dashed #333; border-radius:10px;">
-                Loading accounts...
+            <div style="background-color:@acc.ColorHex; padding:20px; border-radius:15px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
+                 @onclick="() => OpenAccountOptions(acc)">
+                <span style="font-weight:bold; font-size:1.2em; color:white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@acc.Name</span>
+                <span style="font-weight:bold; font-size:1.4em; color:white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@acc.Balance.ToString("N2")</span>
             </div>
         }
     </div>
@@ -64,7 +55,10 @@
                         <div style="color:@t.ColorHex; font-size:10px;">@t.Category</div>
                         <div style="font-weight:bold; color:white;">@t.Desc</div>
                     </div>
-                    <div style="font-weight:bold; font-size:1.1em; color:@t.ColorHex;">@t.AmountDisplay</div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:bold; font-size:1.1em; color:@t.ColorHex;">@t.AmountDisplay</div>
+                        <button style="background:none; border:none; color:#666; font-size:14px; cursor:pointer;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                    </div>
                 </div>
             }
         </div>
@@ -78,7 +72,11 @@
             <h3>New Account 🏦</h3>
             <input @bind="newAccName" class="input-dark" placeholder="Account Name" />
             <input type="number" @bind="newAccBalance" class="input-dark" placeholder="Initial Balance" />
-            <div style="display:flex; gap:10px;">
+
+            <label style="color:gray; font-size:12px;">Pick Color</label>
+            <input type="color" @bind="newAccColor" style="width:100%; height:40px; border:none; border-radius:8px; cursor:pointer;" />
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
                 <button class="btn-primary" @onclick="SaveNewAccount" style="flex:1;">Create</button>
                 <button class="btn-trans" @onclick="() => isAddAccModalVisible = false" style="flex:1;">Cancel</button>
             </div>
@@ -93,27 +91,12 @@
             <h3>@(selectedAccount?.Name ?? "Account")</h3>
             <button class="btn-option" @onclick="EditAccountBalance">💰 Edit Balance</button>
             <button class="btn-option" @onclick="EditAccountName">✏️ Rename</button>
-            <button class="btn-option" @onclick="() => { isPickingColor = true; isAccOptionsVisible = false; }">🎨 Change Color</button>
-            <hr style="border-color:#333;" />
+            <div style="padding:15px; border-bottom:1px solid #333;">
+                <label style="font-size:12px; color:gray;">Change Color:</label>
+                <input type="color" @bind="selectedAccount!.ColorHex" @oninput="async (e) => { if (selectedAccount != null && e.Value != null) { selectedAccount.ColorHex = (string)e.Value; await Firebase.Save(myData); } }" style="width:100%; height:30px; border:none; cursor:pointer;" />
+            </div>
             <button class="btn-option" style="color:#e74c3c;" @onclick="DeleteAccount">🗑️ Delete Account</button>
             <button class="btn-trans" style="margin-top:10px;" @onclick="() => isAccOptionsVisible = false">Close</button>
-        </div>
-    </div>
-}
-
-@if (isPickingColor && selectedAccount != null)
-{
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h3>Pick Color</h3>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
-                @foreach (var c in ColorPalette)
-                {
-                    <div style="width:30px; height:30px; border-radius:50%; background:@c; cursor:pointer; border:2px solid @(selectedAccount.ColorHex == c ? "white" : "transparent");"
-                         @onclick="() => UpdateAccountColor(c)"></div>
-                }
-            </div>
-            <button class="btn-trans" @onclick="() => isPickingColor = false">Cancel</button>
         </div>
     </div>
 }
@@ -123,23 +106,83 @@
     <div class="modal-backdrop">
         <div class="modal-content">
             <h3 style="margin-top:0;">@(isIncome ? "New Income" : "New Expense")</h3>
+
             <select @bind="selectedAccountId" class="input-dark">
                 @foreach (var a in myData.Accounts)
                 {
                     <option value="@a.Id">@a.Name</option>
                 }
             </select>
+
             <input type="number" @bind="transAmount" class="input-dark" placeholder="Amount" />
-            <select @bind="selectedCategory" class="input-dark">
-                @foreach (var c in (isIncome ? myData.IncomeCategories : myData.ExpenseCategories))
-                {
-                    <option value="@c">@c</option>
-                }
-            </select>
+
+            <div style="display:flex; gap:5px;">
+                <select @bind="selectedCategory" class="input-dark" style="flex:1;">
+                    @foreach (var c in (isIncome ? myData.IncomeCategories : myData.ExpenseCategories))
+                    {
+                        <option value="@c">@c</option>
+                    }
+                </select>
+                <button style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true">⚙️</button>
+            </div>
+
             <input @bind="transDesc" class="input-dark" placeholder="Description (Optional)" />
+
             <div style="display:flex; gap:10px;">
                 <button class="btn-primary" @onclick="SaveTransaction" style="flex:1;">Save</button>
                 <button class="btn-trans" @onclick="() => isTransModalVisible = false" style="flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isManageCatsVisible)
+{
+    <div class="modal-backdrop" style="z-index:2100;">
+        <div class="modal-content">
+            <h3>Manage @(isIncome ? "Income" : "Expense") Cats</h3>
+
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
+                <button class="btn-primary" style="width:auto;" @onclick="AddCategory">+</button>
+            </div>
+
+            <div style="max-height:200px; overflow-y:auto;">
+                @foreach (var c in (isIncome ? myData.IncomeCategories : myData.ExpenseCategories).ToList())
+                {
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; color:white;">
+                        <span>@c</span>
+                        <button style="color:#e74c3c; background:none; border:none;" @onclick="() => DeleteCategory(c)">✕</button>
+                    </div>
+                }
+            </div>
+            <button class="btn-trans" style="width:100%; margin-top:10px;" @onclick="() => isManageCatsVisible = false">Close</button>
+        </div>
+    </div>
+}
+
+@if (isDeleteModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Delete Transaction?</h3>
+            <p style="color:gray;">@selectedTrans.Desc (@selectedTrans.AmountDisplay)</p>
+
+            <p style="margin-bottom:5px; color:#00E676;">
+                @(isIncomeTrans ? "Deduct from account?" : "Refund to account?")
+            </p>
+
+            <select @bind="refundAccountId" class="input-dark">
+                <option value="">Don't Change Balance</option>
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">@(isIncomeTrans ? "Deduct from: " : "Refund to: ") @acc.Name</option>
+                }
+            </select>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDelete">Delete</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteModalVisible = false">Cancel</button>
             </div>
         </div>
     </div>
@@ -249,13 +292,13 @@
 @code {
     AppData myData = new AppData();
     decimal TotalBalance => myData.Accounts.Sum(x => x.Balance);
-    string[] ColorPalette = { "#1f1f1f", "#2ecc71", "#e74c3c", "#3498db", "#9b59b6", "#f1c40f", "#e67e22", "#795548", "#607d8b" };
 
-    bool isAddAccModalVisible = false, isAccOptionsVisible = false, isPickingColor = false;
-    bool isTransModalVisible = false, isIncome = true, isTransferModalVisible = false;
+    bool isAddAccModalVisible = false, isAccOptionsVisible = false, isTransModalVisible = false, isManageCatsVisible = false, isDeleteModalVisible = false, isTransferModalVisible = false;
+    bool isIncome = true;
 
-    string newAccName = "", newAccColor = "#1f1f1f";
+    string newAccName = "", newAccColor = "#00E676";
     decimal newAccBalance;
+    string newCatName = "";
     Account? selectedAccount;
 
     string selectedAccountId = "", selectedCategory = "", transDesc = "";
@@ -263,48 +306,48 @@
     string transferFromId = "", transferToId = "";
     decimal transferAmount;
 
+    Transaction selectedTrans = new Transaction();
+    string refundAccountId = "";
+    bool isIncomeTrans = false;
+
     protected override async Task OnInitializedAsync()
     {
         if (string.IsNullOrEmpty(Firebase.CurrentUserId)) { Nav.NavigateTo("/"); return; }
         myData = await Firebase.Load();
-
-        // Retry logic for disappearing accounts
         if (!myData.Accounts.Any()) { await Task.Delay(500); myData = await Firebase.Load(); }
-
         if (myData.Accounts.Any()) selectedAccountId = myData.Accounts.First().Id;
         InitCats();
     }
 
     void InitCats()
     {
-        if (!myData.IncomeCategories.Any()) myData.IncomeCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Salary", "Other" };
-        if (!myData.ExpenseCategories.Any()) myData.ExpenseCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Food", "Other" };
+        if (!myData.IncomeCategories.Any()) myData.IncomeCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Salary", "Bonus" };
+        if (!myData.ExpenseCategories.Any()) myData.ExpenseCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Food", "Transport" };
     }
 
-    void ShowAddAccountModal() { newAccName = ""; newAccBalance = 0; newAccColor = "#1f1f1f"; isAddAccModalVisible = true; }
-
+    void ShowAddAccountModal() { newAccName = ""; newAccBalance = 0; newAccColor = "#00E676"; isAddAccModalVisible = true; }
     async Task SaveNewAccount()
     {
         if (string.IsNullOrWhiteSpace(newAccName)) return;
-        var acc = new Account { Name = newAccName, Balance = newAccBalance, ColorHex = newAccColor };
-        myData.Accounts.Add(acc);
-        await Firebase.Save(myData);
-        isAddAccModalVisible = false;
+        myData.Accounts.Add(new Account { Name = newAccName, Balance = newAccBalance, ColorHex = newAccColor });
+        await Firebase.Save(myData); isAddAccModalVisible = false;
     }
 
-    void OpenAccountOptions(Account acc) { selectedAccount = acc; isPickingColor = false; isAccOptionsVisible = true; }
-
-    async Task UpdateAccountColor(string c) { if (selectedAccount == null) return; selectedAccount.ColorHex = c; await Firebase.Save(myData); isPickingColor = false; }
+    void OpenAccountOptions(Account acc) { selectedAccount = acc; isAccOptionsVisible = true; }
     async Task EditAccountName() { if (selectedAccount == null) return; string n = await JS.InvokeAsync<string>("prompt", "Name:", selectedAccount.Name); if (!string.IsNullOrEmpty(n)) { selectedAccount.Name = n; await Firebase.Save(myData); } }
     async Task EditAccountBalance() { if (selectedAccount == null) return; string b = await JS.InvokeAsync<string>("prompt", "Balance:", selectedAccount.Balance); if (decimal.TryParse(b, out decimal d)) { selectedAccount.Balance = d; await Firebase.Save(myData); } }
     async Task DeleteAccount() { if (selectedAccount != null && await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Accounts.Remove(selectedAccount); await Firebase.Save(myData); isAccOptionsVisible = false; } }
 
+    async Task AddCategory() { if (!string.IsNullOrEmpty(newCatName)) { if (isIncome) myData.IncomeCategories.Add(newCatName); else myData.ExpenseCategories.Add(newCatName); await Firebase.Save(myData); newCatName = ""; } }
+    async Task DeleteCategory(string c) { if (isIncome) myData.IncomeCategories.Remove(c); else myData.ExpenseCategories.Remove(c); await Firebase.Save(myData); }
+
     void ShowTransactionModal(bool inc)
     {
         isIncome = inc; transAmount = 0; isTransModalVisible = true;
-        selectedCategory = (isIncome ? myData.IncomeCategories.FirstOrDefault() : myData.ExpenseCategories.FirstOrDefault()) ?? "Other";
+        // 🔥 FIX CS8600/CS8602/CS8601: Handle null explicitly
+        var defaultCat = isIncome ? myData.IncomeCategories.FirstOrDefault() : myData.ExpenseCategories.FirstOrDefault();
+        selectedCategory = defaultCat ?? "Other";
     }
-
     async Task SaveTransaction()
     {
         var acc = myData.Accounts.FirstOrDefault(x => x.Id == selectedAccountId);
@@ -323,8 +366,31 @@
         await Firebase.Save(myData); isTransModalVisible = false;
     }
 
-    void ShowTransferModal() { if (myData.Accounts.Count < 2) return; transferFromId = myData.Accounts[0].Id; transferToId = myData.Accounts[1].Id; transferAmount = 0; isTransferModalVisible = true; }
+    void ConfirmDelete(Transaction t)
+    {
+        selectedTrans = t;
+        isIncomeTrans = (t.AmountDisplay ?? "").StartsWith("+");
+        refundAccountId = myData.Accounts.FirstOrDefault()?.Id ?? "";
+        isDeleteModalVisible = true;
+    }
 
+    async Task ExecuteDelete()
+    {
+        if (!string.IsNullOrEmpty(refundAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
+            if (acc != null)
+            {
+                if (isIncomeTrans) acc.Balance -= selectedTrans.Amount;
+                else acc.Balance += selectedTrans.Amount;
+            }
+        }
+        myData.History.Remove(selectedTrans);
+        await Firebase.Save(myData);
+        isDeleteModalVisible = false;
+    }
+
+    void ShowTransferModal() { if (myData.Accounts.Count < 2) return; transferFromId = myData.Accounts[0].Id; transferToId = myData.Accounts[1].Id; transferAmount = 0; isTransferModalVisible = true; }
     async Task SaveTransfer()
     {
         var f = myData.Accounts.FirstOrDefault(x => x.Id == transferFromId);
@@ -332,15 +398,7 @@
         if (f != null && t != null && f.Balance >= transferAmount)
         {
             f.Balance -= transferAmount; t.Balance += transferAmount;
-            myData.History.Add(new Transaction
-            {
-                Desc = $"Trf {f.Name}->{t.Name}",
-                Category = "Transfer",
-                Amount = transferAmount,
-                AmountDisplay = $"{transferAmount:N2}",
-                ColorHex = "#3498db",
-                Date = DateTime.Now
-            });
+            myData.History.Add(new Transaction { Desc = $"Trf {f.Name}->{t.Name}", Category = "Transfer", Amount = transferAmount, AmountDisplay = $"{transferAmount:N2}", ColorHex = "#3498db", Date = DateTime.Now });
             await Firebase.Save(myData); isTransferModalVisible = false;
         }
     }

@@ -7,41 +7,69 @@
     <h3 style="margin-top:0; margin-bottom:20px;">Bills & Commitments 🧾</h3>
 
     <div style="background:#1f1f1f; padding:15px; border-radius:15px; margin-bottom:25px; border:1px solid #333;">
-        <input @bind="newBill.Name" placeholder="Bill Name" class="input-dark" />
-        <input type="number" @bind="newBill.Amount" placeholder="Amount" class="input-dark" />
-        <select @bind="newBill.Category" class="input-dark"> @foreach(var c in myData.BillCategories){
-        <option value="@c">@c</option>
-                }
- </select>
+        <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? "Edit Bill" : "New Bill")</h4>
+
+        <input @bind="currentBill.Name" placeholder="Bill Name" class="input-dark" />
+        <input type="number" @bind="currentBill.Amount" placeholder="Amount" class="input-dark" />
+
         <div style="display:flex; gap:5px;">
-            <select @bind="newBill.Frequency" class="input-dark" style="flex:1;"><option>OneTime</option><option>Monthly</option></select>
-            <input type="date" @bind="newBill.DueDate" class="input-dark" style="flex:1;" />
+            <select @bind="currentBill.Category" class="input-dark" style="flex:1;">
+                @foreach (var c in myData.BillCategories)
+                {
+                    <option value="@c">@c</option>
+                }
+            </select>
+            <select @bind="currentBill.Frequency" class="input-dark" style="flex:1;">
+                <option>OneTime</option>
+                <option>Monthly</option>
+                <option>Quarterly</option>
+                <option>Yearly</option>
+            </select>
         </div>
-        <button class="btn-primary" style="width:100%;" @onclick="AddBill">Add Bill</button>
+
+        <input type="date" @bind="currentBill.DueDate" class="input-dark" />
+
+        <div style="margin-bottom:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+                <input type="checkbox" @bind="currentBill.IsShared" style="width:18px; height:18px; accent-color:#00E676;" />
+                <span style="color:#ccc;">Shared Bill?</span>
+            </div>
+            @if (currentBill.IsShared)
+            {
+                <input @bind="currentBill.SharedWith" class="input-dark" placeholder="Who? (e.g., Ahmed, Mona)" style="margin-bottom:0;" />
+            }
+        </div>
+
+        <button class="btn-primary" style="width:100%;" @onclick="SaveBill">@(isEditMode ? "Update Bill" : "Add Bill")</button>
+        @if (isEditMode)
+        {
+            <button class="btn-trans" style="width:100%; margin-top:5px;" @onclick="CancelEdit">Cancel Edit</button>
+        }
     </div>
 
     @foreach (var bill in myData.Bills.OrderBy(x => x.IsPaid).ThenBy(x => x.DueDate))
     {
         <div style="background:#1f1f1f; padding:20px; border-left: 6px solid @(bill.IsPaid ? "#2ecc71" : "#e74c3c"); margin-bottom:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-            <div style="flex:1;">
+            <div style="flex:1; cursor:pointer;" @onclick="() => EditBill(bill)">
                 <div style="font-weight:900; font-size:1.2em; color:white;">@bill.Name</div>
                 <div style="font-size:0.9em; color:#bbb;">@bill.Category • @bill.DueDate.ToString("dd MMM")</div>
-                @if (bill.IsRecurring)
-                {
-                    <span style="font-size:0.7em; color:#00E676; border:1px solid #00E676; padding:2px 6px; border-radius:4px; margin-top:5px; display:inline-block;">@bill.Frequency</span>
-                }
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    @if (bill.IsRecurring)
+                    {
+                        <span class="badge">@bill.Frequency</span>
+                    }
+                    @if (bill.IsShared)
+                    {
+                        <span class="badge" style="border-color:#3498db; color:#3498db;">Shared: @bill.SharedWith</span>
+                    }
+                </div>
             </div>
             <div style="text-align:right;">
                 <div style="font-weight:bold; font-size:1.4em; color:white; margin-bottom:10px;">@bill.Amount.ToString("N0")</div>
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     @if (!bill.IsPaid)
                     {
-                        <button style="background:#ff9800; color:black; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" @onclick="() => InitiatePayBill(bill)">Pay</button>
-                    }
-                    else
-                    {
-
-                        <span style="color:#2ecc71; font-size:12px; font-weight:bold;">PAID</span>
+                        <button class="btn-pay" @onclick="() => InitiatePayBill(bill)">Pay</button>
                     }
                     <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => DeleteBill(bill)">🗑️</button>
                 </div>
@@ -100,6 +128,26 @@
         cursor: pointer;
     }
 
+    .btn-pay {
+        background: #ff9800;
+        color: black;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .badge {
+        font-size: 0.7em;
+        color: #00E676;
+        border: 1px solid #00E676;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 5px;
+        display: inline-block;
+    }
+
     .modal-backdrop {
         position: fixed;
         top: 0;
@@ -125,22 +173,28 @@
 
 @code {
     AppData myData = new AppData();
-    Bill newBill = new Bill { DueDate = DateTime.Now };
+    Bill currentBill = new Bill { DueDate = DateTime.Now };
+    bool isEditMode = false;
+
     bool isPayModalVisible = false;
     Bill? selectedBillToPay;
     string payFromAccountId = "";
 
     protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
-    async Task AddBill() { if (!string.IsNullOrEmpty(newBill.Name)) { myData.Bills.Add(newBill); await Firebase.Save(myData); newBill = new Bill { DueDate = DateTime.Now }; } }
-    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); } }
 
-    void InitiatePayBill(Bill b)
+    void EditBill(Bill b) { currentBill = b; isEditMode = true; }
+    void CancelEdit() { currentBill = new Bill { DueDate = DateTime.Now }; isEditMode = false; }
+
+    async Task SaveBill()
     {
-        if (!myData.Accounts.Any()) { return; }
-        selectedBillToPay = b;
-        payFromAccountId = myData.Accounts.First().Id;
-        isPayModalVisible = true;
+        if (string.IsNullOrEmpty(currentBill.Name)) return;
+        if (!isEditMode) myData.Bills.Add(currentBill);
+        await Firebase.Save(myData); CancelEdit();
     }
+
+    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); if (isEditMode && currentBill == b) CancelEdit(); } }
+
+    void InitiatePayBill(Bill b) { if (!myData.Accounts.Any()) return; selectedBillToPay = b; payFromAccountId = myData.Accounts.First().Id; isPayModalVisible = true; }
 
     async Task ConfirmPayBill()
     {
@@ -149,22 +203,10 @@
         if (acc != null)
         {
             if (acc.Balance < selectedBillToPay.Amount) { await JS.InvokeVoidAsync("alert", "Insufficient balance!"); return; }
-
-            acc.Balance -= selectedBillToPay.Amount; // Deduct Balance
-            myData.History.Add(new Transaction
-            {
-                Desc = $"Paid Bill: {selectedBillToPay.Name}",
-                Category = "Bills",
-                Amount = selectedBillToPay.Amount, // ✅ NEW FIELD
-                AmountDisplay = $"-{selectedBillToPay.Amount:N2}",
-                ColorHex = "#e74c3c",
-                Date = DateTime.Now
-            });
-
-            selectedBillToPay.IsPaid = true;
-            selectedBillToPay.PaymentDate = DateTime.Now;
-            await Firebase.Save(myData);
-            isPayModalVisible = false;
+            acc.Balance -= selectedBillToPay.Amount;
+            myData.History.Add(new Transaction { Desc = $"Paid Bill: {selectedBillToPay.Name}", Category = "Bills", Amount = selectedBillToPay.Amount, AmountDisplay = $"-{selectedBillToPay.Amount:N2}", ColorHex = "#e74c3c", Date = DateTime.Now });
+            selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;
+            await Firebase.Save(myData); isPayModalVisible = false;
         }
     }
 }

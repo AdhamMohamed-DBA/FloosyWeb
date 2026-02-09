@@ -4,11 +4,15 @@
 @inject IJSRuntime JS
 
 <div style="padding: 20px; padding-bottom: 80px;">
-    <h3 style="margin-bottom:20px;">Settings ⚙️</h3>
+
+    <div style="text-align:center; margin-bottom:30px;">
+        <img src="images/appicon.png" style="width:80px; height:80px; border-radius:15px;" />
+        <h3 style="margin-top:10px;">Settings</h3>
+    </div>
 
     <div class="setting-card">
         <label>Display Name</label>
-        <div style="display:flex; gap:10px;">
+        <div class="row">
             <input @bind="newName" class="input-dark" placeholder="@Firebase.GetUserName()" />
             <button class="btn-small" @onclick="UpdateName">Save</button>
         </div>
@@ -16,7 +20,8 @@
 
     <div class="setting-card">
         <label>Change Password</label>
-        <div style="display:flex; gap:10px;">
+        <input @bind="oldPass" type="password" class="input-dark" placeholder="Old Password" style="width:100%; margin-bottom:5px;" />
+        <div class="row">
             <input @bind="newPass" type="password" class="input-dark" placeholder="New Password" />
             <button class="btn-small" @onclick="UpdatePass">Update</button>
         </div>
@@ -25,15 +30,11 @@
     <div class="setting-card">
         <label>Support</label>
         <a href="https://wa.me/201xxxxxxxxx" target="_blank" class="btn-whatsapp">
-            <span style="font-size:18px;">💬</span> Contact via WhatsApp
+            <span>💬</span> Contact via WhatsApp
         </a>
     </div>
 
     <button class="btn-logout" @onclick="SignOut">Sign Out</button>
-
-    <div style="text-align:center; color:gray; font-size:12px; margin-top:30px;">
-        Floosy v1.0 <br /> by Adham Mohamed
-    </div>
 </div>
 
 <style>
@@ -49,24 +50,30 @@
             display: block;
             color: #00E676;
             font-size: 12px;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
             font-weight: bold;
         }
+
+    .row {
+        display: flex;
+        gap: 10px;
+    }
 
     .input-dark {
         flex: 1;
         background: #333;
         color: white;
         border: none;
-        padding: 10px;
+        padding: 12px;
         border-radius: 8px;
+        box-sizing: border-box;
     }
 
     .btn-small {
         background: #00E676;
         color: black;
         border: none;
-        padding: 0 15px;
+        padding: 0 20px;
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
@@ -83,7 +90,8 @@
         padding: 12px;
         border-radius: 8px;
         font-weight: bold;
-        margin-top: 5px;
+        display: block;
+        text-align: center;
     }
 
     .btn-logout {
@@ -101,27 +109,31 @@
 
 @code {
     string newName = "";
+    string oldPass = "";
     string newPass = "";
 
     async Task UpdateName()
     {
         if (string.IsNullOrWhiteSpace(newName)) return;
-        await Firebase.UpdateUserName(newName);
-        await JS.InvokeVoidAsync("alert", "Name updated! Re-login to see changes.");
-        newName = "";
+        await Firebase.UpdateUserName(newName); await JS.InvokeVoidAsync("alert", "Name updated!"); newName = "";
     }
 
     async Task UpdatePass()
     {
-        if (string.IsNullOrWhiteSpace(newPass)) return;
+        if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { await JS.InvokeVoidAsync("alert", "Enter old and new password."); return; }
+
+        // 🔥 FIX CS8604: Ensure Email is not null
+        if (string.IsNullOrEmpty(Firebase.UserEmail))
+        {
+            await JS.InvokeVoidAsync("alert", "Error: User email not found.");
+            return;
+        }
+
+        var verify = await Firebase.Login(Firebase.UserEmail, oldPass);
+        if (verify != "Success") { await JS.InvokeVoidAsync("alert", "Old password incorrect!"); return; }
         var res = await Firebase.ChangePassword(newPass);
-        await JS.InvokeVoidAsync("alert", res);
-        newPass = "";
+        await JS.InvokeVoidAsync("alert", res); oldPass = ""; newPass = "";
     }
 
-    void SignOut()
-    {
-        Firebase.SignOut();
-        Nav.NavigateTo("/", forceLoad: true);
-    }
+    void SignOut() { Firebase.SignOut(); Nav.NavigateTo("/", forceLoad: true); }
 }

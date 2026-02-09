@@ -7,6 +7,7 @@ public class AppData
     public ObservableCollection<Account> Accounts { get; set; } = new();
     public ObservableCollection<Bill> Bills { get; set; } = new();
     public ObservableCollection<Transaction> History { get; set; } = new();
+
     public ObservableCollection<string> IncomeCategories { get; set; } = new();
     public ObservableCollection<string> ExpenseCategories { get; set; } = new();
     public ObservableCollection<string> BillCategories { get; set; } = new();
@@ -31,9 +32,11 @@ public class Bill
     public DateTime? PaymentDate { get; set; }
     public string Category { get; set; } = "Bills";
     public string Notes { get; set; } = "";
+
     public string Frequency { get; set; } = "OneTime";
     public bool IsRecurring => Frequency != "OneTime";
-    public bool HasNotes => !string.IsNullOrEmpty(Notes);
+    public bool IsShared { get; set; } = false;
+    public string SharedWith { get; set; } = "";
 }
 
 public class Transaction
@@ -41,8 +44,6 @@ public class Transaction
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string? Desc { get; set; }
     public string Category { get; set; } = "Other";
-
-    // 🔥 ADDED: Original Amount for calculation safety
     public decimal Amount { get; set; }
     public string? AmountDisplay { get; set; }
     public string? ColorHex { get; set; }
@@ -55,11 +56,4 @@ public class ChartItem
     public double Pct { get; set; }
     public string AmountStr { get; set; } = "";
     public string Color { get; set; } = "";
-    public double WidthRequest { get; set; }
-}
-
-public class AppVersionInfo
-{
-    public string LatestVersion { get; set; } = "1.0";
-    public string UpdateUrl { get; set; } = "";
 }
