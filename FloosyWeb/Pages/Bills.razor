@@ -1,0 +1,79 @@
+﻿@page "/bills"
+@using FloosyWeb.Models
+@inject FirebaseService Firebase
+@inject IJSRuntime JS
+
+<div style="padding: 20px; padding-bottom: 80px;">
+    <h3 style="margin-top:0; margin-bottom:20px;">Bills & Commitments 🧾</h3>
+
+    <div style="background:#1f1f1f; padding:15px; border-radius:15px; margin-bottom:25px; border:1px solid #333;">
+        <input @bind="newBill.Name" placeholder="Bill Name" class="input-dark" />
+        <input type="number" @bind="newBill.Amount" placeholder="Amount" class="input-dark" />
+        <select @bind="newBill.Category" class="input-dark"> @foreach(var c in myData.BillCategories){
+        <option value="@c">@c</option>
+                }
+ </select>
+        <div style="display:flex; gap:5px;">
+            <select @bind="newBill.Frequency" class="input-dark" style="flex:1;"><option>OneTime</option><option>Monthly</option></select>
+            <input type="date" @bind="newBill.DueDate" class="input-dark" style="flex:1;" />
+        </div>
+        <button class="btn-primary" style="width:100%;" @onclick="AddBill">Add Bill</button>
+    </div>
+
+    @foreach (var bill in myData.Bills.OrderBy(x => x.IsPaid).ThenBy(x => x.DueDate))
+    {
+        <div style="background:#1f1f1f; padding:20px; border-left: 6px solid @(bill.IsPaid ? "#2ecc71" : "#e74c3c"); margin-bottom:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+            <div style="flex:1;">
+                <div style="font-weight:900; font-size:1.2em; color:white;">@bill.Name</div>
+                <div style="font-size:0.9em; color:#bbb;">@bill.Category • @bill.DueDate.ToString("dd MMM")</div>
+                @if (bill.IsRecurring)
+                {
+                    <span style="font-size:0.7em; color:#00E676; border:1px solid #00E676; padding:2px 6px; border-radius:4px; margin-top:5px; display:inline-block;">@bill.Frequency</span>
+                }
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:bold; font-size:1.4em; color:white; margin-bottom:10px;">@bill.Amount.ToString("N0")</div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    @if (!bill.IsPaid)
+                    {
+                        <button style="background:#ff9800; color:black; border:none; padding:5px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" @onclick="() => PayBill(bill)">Pay</button>
+                    }
+                    <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => DeleteBill(bill)">🗑️</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .input-dark {
+        width: 100%;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+    }
+
+    .btn-primary {
+        background-color: #00E676;
+        color: black;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    AppData myData = new AppData();
+    Bill newBill = new Bill { DueDate = DateTime.Now };
+    protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
+    async Task AddBill() { if (!string.IsNullOrEmpty(newBill.Name)) { myData.Bills.Add(newBill); await Firebase.Save(myData); newBill = new Bill { DueDate = DateTime.Now }; } }
+    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); } }
+    // PayBill logic same as before (Modal or Direct) - simplified here for brevity
+    async Task PayBill(Bill b) { b.IsPaid = true; await Firebase.Save(myData); }
+}

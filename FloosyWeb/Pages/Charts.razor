@@ -1,0 +1,121 @@
+﻿@page "/charts"
+@using FloosyWeb.Models
+@inject FirebaseService Firebase
+
+<div style="padding: 20px; padding-bottom: 80px;">
+    <h3>Analytics 📊</h3>
+
+    <div class="card" style="padding:10px; margin-bottom:15px; background:#1f1f1f;">
+        <label style="color:gray; font-size:12px;">Select Month</label>
+        <select @bind="selectedMonth" style="width:100%; background:#333; color:white; padding:10px; border-radius:5px; border:none;">
+            @foreach (var m in AvailableMonths)
+            {
+                <option value="@m">@m</option>
+            }
+        </select>
+    </div>
+
+    <div style="margin-bottom:5px; font-size:12px; color:gray;">Income vs Expense (This Month)</div>
+    <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
+        @if (MonthIncome + MonthExpense > 0)
+        {
+            <div style="background:#2ecc71; width:@(IncomePct)%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">
+                @IncomePct.ToString("0")%
+            </div>
+            <div style="background:#e74c3c; width:@(ExpensePct)%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">
+                @ExpensePct.ToString("0")%
+            </div>
+        }
+        else
+        {
+            <div style="width:100%; text-align:center; color:gray; line-height:30px;">No Data</div>
+        }
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:20px;">
+        <span style="color:#2ecc71;">+@MonthIncome.ToString("N0")</span>
+        <span style="color:#e74c3c;">-@MonthExpense.ToString("N0")</span>
+    </div>
+
+    <hr style="border-color:#333; margin-bottom:20px;" />
+
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");"
+                @onclick="() => isExpense = false">
+            Income Charts
+        </button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;"
+                @onclick="() => isExpense = true">
+            Expense Charts
+        </button>
+    </div>
+
+    @if (ChartData.Any())
+    {
+        @foreach (var item in ChartData)
+        {
+            <div style="margin-bottom: 15px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="font-weight:bold;">@item.Name</span>
+                    <span style="color:gray;">@item.AmountStr</span>
+                </div>
+                <div style="width:100%; background:#333; height:10px; border-radius:5px;">
+                    <div style="width:@(item.Pct * 100)%; background:@item.Color; height:100%; border-radius:5px; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <p style="text-align:center; color:gray; margin-top:50px;">No charts data for this month.</p>
+    }
+</div>
+
+@code {
+    AppData myData = new AppData();
+    string selectedMonth = DateTime.Now.ToString("MMMM yyyy");
+    bool isExpense = true;
+    List<string> AvailableMonths = new List<string>();
+
+    // FIX 1: Null Safety for AmountDisplay using (?? "0")
+    decimal MonthIncome => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => decimal.Parse((x.AmountDisplay ?? "0").Replace("+", "")));
+    decimal MonthExpense => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => decimal.Parse((x.AmountDisplay ?? "0").Replace("-", "")));
+
+    double IncomePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthIncome / (MonthIncome + MonthExpense)) * 100);
+    double ExpensePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthExpense / (MonthIncome + MonthExpense)) * 100);
+
+    protected override async Task OnInitializedAsync()
+    {
+        for (int i = 0; i < 12; i++) { AvailableMonths.Add(DateTime.Now.AddMonths(-i).ToString("MMMM yyyy")); }
+        myData = await Firebase.Load();
+    }
+
+    List<ChartItem> ChartData
+    {
+        get
+        {
+            // FIX 2: Null Safety inside LINQ
+            var filtered = myData.History
+                .Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth &&
+                            (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+")))
+                .ToList();
+
+            double total = filtered.Sum(x => double.Parse((x.AmountDisplay ?? "0").Replace("-", "").Replace("+", "")));
+            if (total == 0) return new List<ChartItem>();
+
+            return filtered.GroupBy(x => x.Category ?? "Other")
+                .Select(g =>
+                {
+                    double val = g.Sum(x => double.Parse((x.AmountDisplay ?? "0").Replace("-", "").Replace("+", "")));
+                    return new ChartItem
+                    {
+                        Name = g.Key,
+                        AmountStr = val.ToString("N2"),
+                        Pct = val / total,
+                        Color = isExpense ? "#e74c3c" : "#2ecc71"
+                    };
+                })
+                .OrderByDescending(x => x.Pct)
+                .ToList();
+        }
+    }
+}

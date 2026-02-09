@@ -1,0 +1,12 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(FloosyWeb.Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(FloosyWeb.Layout.MainLayout)">
+            <p role="alert" style="color:white; text-align:center; margin-top:50px;">Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

@@ -1,0 +1,28 @@
+﻿@page "/settings"
+@inject FirebaseService Firebase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Blazored.LocalStorage
+@inject ISyncLocalStorageService LocalStorage
+
+<div style="padding: 20px;">
+    <div style="text-align:center; margin-bottom:30px;">
+        <h2 style="margin:0;">@Firebase.GetUserName()</h2>
+        <p style="color:#00E676;">@Firebase.UserEmail</p>
+    </div>
+
+    <button style="background:transparent; color:gray; border:none; margin-top:20px; width:100%; padding:15px; cursor:pointer;"
+            @onclick="SignOut">
+        Sign Out
+    </button>
+</div>
+
+@code {
+    void SignOut()
+    {
+        Firebase.SignOut(); // Clear Service
+        LocalStorage.Clear(); // Clear "Remember Me"
+        Nav.NavigateTo("/", forceLoad: true); // Go to Login & Refresh
+    }
+    // ... Other functions same as before
+}

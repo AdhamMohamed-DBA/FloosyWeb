@@ -1,0 +1,99 @@
+﻿@page "/"
+@inject FirebaseService Firebase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Blazored.LocalStorage
+@inject ISyncLocalStorageService LocalStorage
+
+@if (isCheckingAuth)
+{
+    <div style="height:100vh; display:flex; justify-content:center; align-items:center; color:#00E676;">
+        <h2>Floosy...</h2>
+    </div>
+}
+else
+{
+    <div style="padding:30px; text-align:center; margin-top:50px;">
+        <h1 style="color:#00E676">Floosy</h1>
+        <input @bind="email" placeholder="Email" class="input-dark" />
+        <input @bind="password" type="password" placeholder="Password" class="input-dark" />
+
+        <div style="text-align:left; margin-bottom:15px; color:white;">
+            <input type="checkbox" @bind="rememberMe" /> Remember Me
+        </div>
+        <button class="btn-primary" @onclick="DoLogin">Login</button>
+    </div>
+}
+
+<style>
+    .input-dark {
+        width: 100%;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+
+    .btn-primary {
+        width: 100%;
+        background-color: #00E676;
+        color: black;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    string email = "", password = "";
+    bool rememberMe = false;
+    bool isCheckingAuth = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Check if we have saved credentials
+        var savedEmail = LocalStorage.GetItem<string>("SavedEmail");
+        var savedPass = LocalStorage.GetItem<string>("SavedPass");
+
+        if (!string.IsNullOrEmpty(savedEmail) && !string.IsNullOrEmpty(savedPass))
+        {
+            // Auto Login
+            var res = await Firebase.Login(savedEmail, savedPass);
+            if (res == "Success")
+            {
+                Nav.NavigateTo("/home");
+                return;
+            }
+        }
+
+        isCheckingAuth = false; // Show Login Screen
+    }
+
+    async Task DoLogin()
+    {
+        var res = await Firebase.Login(email, password);
+        if (res == "Success")
+        {
+            if (rememberMe)
+            {
+                LocalStorage.SetItem("SavedEmail", email);
+                LocalStorage.SetItem("SavedPass", password);
+            }
+            else
+            {
+                LocalStorage.RemoveItem("SavedEmail");
+                LocalStorage.RemoveItem("SavedPass");
+            }
+            Nav.NavigateTo("/home");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", res);
+        }
+    }
+    // ... Register Logic ...
+}

@@ -1,0 +1,94 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@inject FirebaseService Firebase
+
+<div class="page" style="background-color: #121212; min-height: 100vh; color: white; display: flex; flex-direction: column;">
+
+    <main style="flex: 1; padding-bottom: 80px; width: 100%;">
+        @Body
+    </main>
+
+</div>
+
+@if (!string.IsNullOrEmpty(Firebase.CurrentUserId))
+{
+    <div class="bottom-nav">
+        <a class="nav-item @(IsActive("home") ? "active" : "")" @onclick='() => Nav.NavigateTo("home")'>
+            <img src="images/home.png" class="nav-icon" />
+            <span>Home</span>
+        </a>
+        <a class="nav-item @(IsActive("bills") ? "active" : "")" @onclick='() => Nav.NavigateTo("bills")'>
+            <img src="images/bill.png" class="nav-icon" />
+            <span>Bills</span>
+        </a>
+        <a class="nav-item @(IsActive("charts") ? "active" : "")" @onclick='() => Nav.NavigateTo("charts")'>
+            <img src="images/chart.png" class="nav-icon" />
+            <span>Charts</span>
+        </a>
+        <a class="nav-item @(IsActive("history") ? "active" : "")" @onclick='() => Nav.NavigateTo("history")'>
+            <img src="images/history.png" class="nav-icon" />
+            <span>History</span>
+        </a>
+        <a class="nav-item @(IsActive("settings") ? "active" : "")" @onclick='() => Nav.NavigateTo("settings")'>
+            <img src="images/setting.png" class="nav-icon" />
+            <span>Settings</span>
+        </a>
+    </div>
+}
+
+<style>
+    /* تنسيقات عامة للتنظيف */
+    body, html {
+        margin: 0;
+        padding: 0;
+        background-color: #121212;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* تنسيق البار السفلي */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #1f1f1f;
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 0;
+        border-top: 1px solid #333;
+        z-index: 1000;
+        box-shadow: 0 -4px 10px rgba(0,0,0,0.5);
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: gray;
+        font-size: 11px;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+    }
+
+        .nav-item.active {
+            color: #00E676;
+        }
+
+            .nav-item.active img {
+                transform: scale(1.1);
+                filter: drop-shadow(0 0 2px #00E676);
+            }
+
+    .nav-icon {
+        width: 24px;
+        height: 24px;
+        margin-bottom: 4px;
+        object-fit: contain;
+    }
+</style>
+
+@code {
+    bool IsActive(string href) => Nav.Uri.ToLower().Contains(href);
+}

@@ -1,0 +1,136 @@
+﻿@page "/history"
+@using FloosyWeb.Models
+@inject FirebaseService Firebase
+@inject IJSRuntime JS
+
+<div style="padding: 20px; padding-bottom: 80px;">
+    <h3 style="margin-top:0; margin-bottom:20px;">Full History 📜</h3>
+
+    @if (!myData.History.Any())
+    {
+        <p style="text-align:center; color:gray; margin-top:50px;">No transactions found.</p>
+    }
+    else
+    {
+        @foreach (var t in myData.History.OrderByDescending(x => x.Date))
+        {
+            <div style="background:#1f1f1f; padding:15px; border-left: 4px solid @t.ColorHex; margin-bottom:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                    <div style="color:@t.ColorHex; font-size:11px;">@t.Category</div>
+                    <div style="font-weight:bold; color:white; font-size:1.1em;">@t.Desc</div>
+                    <div style="color:gray; font-size:11px;">@t.Date.ToString("dd MMM, HH:mm")</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:bold; font-size:1.2em; color:@t.ColorHex; margin-bottom:5px;">@t.AmountDisplay</div>
+                    <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@if (isDeleteModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Delete Transaction?</h3>
+            <p style="color:gray; font-size:12px;">@selectedTrans.Desc (@selectedTrans.AmountDisplay)</p>
+
+            <p style="margin-bottom:5px;">Refund Amount to Account?</p>
+            <select @bind="refundAccountId" style="width:100%; padding:10px; background:#333; color:white; border-radius:5px; border:none; margin-bottom:15px;">
+                <option value="">Don't Refund (Just Delete)</option>
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">Refund to: @acc.Name</option>
+                }
+            </select>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDelete">Delete</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteModalVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 350px;
+        background: #1f1f1f;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+    }
+
+    .btn-primary {
+        background-color: #00E676;
+        color: black;
+        border: none;
+        padding: 10px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-trans {
+        background: transparent;
+        color: gray;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    AppData myData = new AppData();
+    bool isDeleteModalVisible = false;
+
+    // FIX 1: Initialized to avoid CS8618
+    Transaction selectedTrans = new Transaction();
+    string refundAccountId = "";
+
+    protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); }
+
+    void ConfirmDelete(Transaction t)
+    {
+        selectedTrans = t;
+        refundAccountId = "";
+        if (myData.Accounts.Any()) refundAccountId = myData.Accounts.First().Id;
+        isDeleteModalVisible = true;
+    }
+
+    async Task ExecuteDelete()
+    {
+        // FIX 2: Ensure AmountDisplay is not null
+        string amountStr = selectedTrans.AmountDisplay ?? "0";
+
+        if (!string.IsNullOrEmpty(refundAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
+            if (acc != null)
+            {
+                decimal amount = decimal.Parse(amountStr.Replace("+", "").Replace("-", ""));
+                if (amountStr.StartsWith("+")) acc.Balance -= amount;
+                else acc.Balance += amount;
+            }
+        }
+
+        myData.History.Remove(selectedTrans);
+        await Firebase.Save(myData);
+        isDeleteModalVisible = false;
+    }
+}

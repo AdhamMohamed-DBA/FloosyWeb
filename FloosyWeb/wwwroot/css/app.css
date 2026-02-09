@@ -1,0 +1,97 @@
+body {
+    background-color: #121212;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Custom Controls Look-alike MAUI */
+.card {
+    background-color: #1f1f1f;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+input {
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 10px;
+    box-sizing: border-box; /* Important fix */
+}
+
+button {
+    border-radius: 10px;
+    padding: 10px 15px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.btn-primary {
+    background-color: #00E676;
+    color: black;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-info {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-trans {
+    background-color: transparent;
+    color: gray;
+}
+
+/* Tabs Layout (Bottom Bar) */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #1f1f1f;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #333;
+    z-index: 1000;
+}
+
+.nav-item {
+    color: gray;
+    text-align: center;
+    font-size: 12px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+    .nav-item.active {
+        color: #00E676;
+    }
+
+.nav-icon {
+    font-size: 20px;
+    display: block;
+}
+
+/* Hide Scrollbar for cleaner look */
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 5px;
+}
