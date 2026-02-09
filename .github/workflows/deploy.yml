@@ -2,7 +2,7 @@ name: Deploy .NET 10 App
 
 on:
   push:
-    branches: [ master ] # At2aked en esm el branch 3andak master
+    branches: [ master ]
 
 permissions:
   contents: write
@@ -20,8 +20,7 @@ jobs:
 
     - name: Publish
       run: |
-        dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release --nologo
-        # Dah malaf mohem le GitHub Pages 3ashan mayshelsh folderat el framework
+        dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release --nologo /p:GHPages=true
         touch release/wwwroot/.nojekyll
 
     - name: Deploy
