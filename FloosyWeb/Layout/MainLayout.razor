@@ -3,14 +3,12 @@
 @inject FirebaseService Firebase
 
 <div class="page" style="background-color: #121212; min-height: 100vh; color: white; display: flex; flex-direction: column;">
-
     <main style="flex: 1; padding-bottom: 80px; width: 100%;">
         @Body
     </main>
-
 </div>
 
-@if (!string.IsNullOrEmpty(Firebase.CurrentUserId))
+@if (!string.IsNullOrEmpty(Firebase.CurrentUserId) && !Nav.Uri.EndsWith("/") && !Nav.Uri.Contains("/login"))
 {
     <div class="bottom-nav">
         <a class="nav-item @(IsActive("home") ? "active" : "")" @onclick='() => Nav.NavigateTo("home")'>
@@ -37,7 +35,6 @@
 }
 
 <style>
-    /* تنسيقات عامة للتنظيف */
     body, html {
         margin: 0;
         padding: 0;
@@ -45,7 +42,6 @@
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* تنسيق البار السفلي */
     .bottom-nav {
         position: fixed;
         bottom: 0;
@@ -91,4 +87,11 @@
 
 @code {
     bool IsActive(string href) => Nav.Uri.ToLower().Contains(href);
+
+    protected override void OnInitialized()
+    {
+        // 🔥 تشغيل الدالة دي هنا آمن عشان الـ JS بيكون حمل
+        Firebase.InitUser();
+        Nav.LocationChanged += (s, e) => StateHasChanged();
+    }
 }

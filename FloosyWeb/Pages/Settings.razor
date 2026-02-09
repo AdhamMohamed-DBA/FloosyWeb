@@ -1,4 +1,5 @@
 ﻿@page "/settings"
+@using FloosyWeb.Models
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -11,25 +12,36 @@
     </div>
 
     <div class="setting-card">
+        <label>Start of Month (Salary Day)</label>
+        <div class="input-stack">
+            <input type="number" min="1" max="28" @bind="financialDay" class="input-dark" placeholder="e.g. 25" style="text-align:center;" />
+            <button class="btn-small full-width" @onclick="UpdateFinancialDay">Save</button>
+        </div>
+        <p style="color:gray; font-size:10px; margin-top:5px;">
+            Example: If set to 25, transactions from Feb 25th will appear in March charts.
+        </p>
+    </div>
+
+    <div class="setting-card">
         <label>Display Name</label>
-        <div class="row">
-            <input @bind="newName" class="input-dark" placeholder="@Firebase.GetUserName()" />
-            <button class="btn-small" @onclick="UpdateName">Save</button>
+        <div class="input-stack">
+            <input @bind="newName" class="input-dark" placeholder="Your Name" />
+            <button class="btn-small full-width" @onclick="UpdateName">Save</button>
         </div>
     </div>
 
     <div class="setting-card">
         <label>Change Password</label>
-        <input @bind="oldPass" type="password" class="input-dark" placeholder="Old Password" style="width:100%; margin-bottom:5px;" />
-        <div class="row">
+        <div class="input-stack">
+            <input @bind="oldPass" type="password" class="input-dark" placeholder="Old Password" />
             <input @bind="newPass" type="password" class="input-dark" placeholder="New Password" />
-            <button class="btn-small" @onclick="UpdatePass">Update</button>
+            <button class="btn-small full-width" @onclick="UpdatePass">Update Password</button>
         </div>
     </div>
 
     <div class="setting-card">
         <label>Support</label>
-        <a href="https://wa.me/201xxxxxxxxx" target="_blank" class="btn-whatsapp">
+        <a href="https://wa.me/201000000000" target="_blank" class="btn-whatsapp">
             <span>💬</span> Contact via WhatsApp
         </a>
     </div>
@@ -50,17 +62,19 @@
             display: block;
             color: #00E676;
             font-size: 12px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-weight: bold;
         }
 
-    .row {
+    .input-stack {
         display: flex;
+        flex-direction: column;
         gap: 10px;
+        width: 100%;
     }
 
     .input-dark {
-        flex: 1;
+        width: 100%;
         background: #333;
         color: white;
         border: none;
@@ -69,11 +83,12 @@
         box-sizing: border-box;
     }
 
-    .btn-small {
+    .btn-small.full-width {
+        width: 100%;
         background: #00E676;
         color: black;
         border: none;
-        padding: 0 20px;
+        padding: 12px;
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
@@ -108,32 +123,55 @@
 </style>
 
 @code {
-    string newName = "";
-    string oldPass = "";
-    string newPass = "";
+    AppData myData = new AppData();
+    string newName = "", oldPass = "", newPass = "";
+    int financialDay = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        myData = await Firebase.Load();
+        financialDay = myData.FinancialStartDay;
+        if (financialDay < 1) financialDay = 1;
+
+        // 🔥 FIX: Pre-fill the input with the current name
+        newName = Firebase.GetUserName();
+    }
+
+    async Task UpdateFinancialDay()
+    {
+        if (financialDay < 1 || financialDay > 28) { await JS.InvokeVoidAsync("alert", "Day must be between 1 and 28"); return; }
+        myData.FinancialStartDay = financialDay;
+        await Firebase.Save(myData);
+        await JS.InvokeVoidAsync("alert", "Financial start day updated!");
+    }
 
     async Task UpdateName()
     {
         if (string.IsNullOrWhiteSpace(newName)) return;
-        await Firebase.UpdateUserName(newName); await JS.InvokeVoidAsync("alert", "Name updated!"); newName = "";
+
+        // Update in Firebase and LocalStorage
+        await Firebase.UpdateUserName(newName);
+
+        await JS.InvokeVoidAsync("alert", "Name updated!");
+        // Reload to reflect changes everywhere
+        Nav.NavigateTo(Nav.Uri, forceLoad: true);
     }
 
     async Task UpdatePass()
     {
         if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { await JS.InvokeVoidAsync("alert", "Enter old and new password."); return; }
-
-        // 🔥 FIX CS8604: Ensure Email is not null
-        if (string.IsNullOrEmpty(Firebase.UserEmail))
-        {
-            await JS.InvokeVoidAsync("alert", "Error: User email not found.");
-            return;
-        }
+        if (string.IsNullOrEmpty(Firebase.UserEmail)) { await JS.InvokeVoidAsync("alert", "Error: User email not found."); return; }
 
         var verify = await Firebase.Login(Firebase.UserEmail, oldPass);
         if (verify != "Success") { await JS.InvokeVoidAsync("alert", "Old password incorrect!"); return; }
+
         var res = await Firebase.ChangePassword(newPass);
         await JS.InvokeVoidAsync("alert", res); oldPass = ""; newPass = "";
     }
 
-    void SignOut() { Firebase.SignOut(); Nav.NavigateTo("/", forceLoad: true); }
+    void SignOut()
+    {
+        Firebase.SignOut();
+        Nav.NavigateTo("", forceLoad: true);
+    }
 }

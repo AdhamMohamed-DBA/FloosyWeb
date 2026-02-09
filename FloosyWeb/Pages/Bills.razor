@@ -3,8 +3,14 @@
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
 
-<div style="padding: 20px; padding-bottom: 80px;">
-    <h3 style="margin-top:0; margin-bottom:20px;">Bills & Commitments 🧾</h3>
+<div style="padding: 20px; padding-bottom: 80px;" id="billsTop">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0;">Bills 🧾</h3>
+        <button style="background:#3498db; border:none; color:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; width: auto;" @onclick="ResetMonthlyBills">
+            🔄 New Month
+        </button>
+    </div>
 
     <div style="background:#1f1f1f; padding:15px; border-radius:15px; margin-bottom:25px; border:1px solid #333;">
         <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? "Edit Bill" : "New Bill")</h4>
@@ -19,15 +25,18 @@
                     <option value="@c">@c</option>
                 }
             </select>
+            <button style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true">⚙️</button>
+        </div>
+
+        <div style="display:flex; gap:5px;">
             <select @bind="currentBill.Frequency" class="input-dark" style="flex:1;">
                 <option>OneTime</option>
                 <option>Monthly</option>
                 <option>Quarterly</option>
                 <option>Yearly</option>
             </select>
+            <input type="date" @bind="currentBill.DueDate" class="input-dark" style="flex:1;" />
         </div>
-
-        <input type="date" @bind="currentBill.DueDate" class="input-dark" />
 
         <div style="margin-bottom:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
@@ -36,7 +45,8 @@
             </div>
             @if (currentBill.IsShared)
             {
-                <input @bind="currentBill.SharedWith" class="input-dark" placeholder="Who? (e.g., Ahmed, Mona)" style="margin-bottom:0;" />
+                <input @bind="currentBill.SharedWith" class="input-dark" placeholder="Who with? (e.g., Ahmed)" style="margin-bottom:5px;" />
+                <input @bind="currentBill.Notes" class="input-dark" placeholder="Who Paid? (e.g., I paid 50%)" style="margin-bottom:0;" />
             }
         </div>
 
@@ -53,16 +63,23 @@
             <div style="flex:1; cursor:pointer;" @onclick="() => EditBill(bill)">
                 <div style="font-weight:900; font-size:1.2em; color:white;">@bill.Name</div>
                 <div style="font-size:0.9em; color:#bbb;">@bill.Category • @bill.DueDate.ToString("dd MMM")</div>
-                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:center;">
                     @if (bill.IsRecurring)
                     {
                         <span class="badge">@bill.Frequency</span>
                     }
                     @if (bill.IsShared)
                     {
-                        <span class="badge" style="border-color:#3498db; color:#3498db;">Shared: @bill.SharedWith</span>
+                        <span class="badge" style="border-color:#3498db; color:#3498db;">Shared</span>
                     }
                 </div>
+                @if (bill.IsShared)
+                {
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #333; font-size:0.8em; color:#bbb;">
+                        <div>👥 <b>With:</b> @bill.SharedWith</div>
+                        <div>📝 <b>Status:</b> @bill.Notes</div>
+                    </div>
+                }
             </div>
             <div style="text-align:right;">
                 <div style="font-weight:bold; font-size:1.4em; color:white; margin-bottom:10px;">@bill.Amount.ToString("N0")</div>
@@ -78,22 +95,45 @@
     }
 </div>
 
+@if (isManageCatsVisible)
+{
+    <div class="modal-backdrop" style="z-index:2100;">
+        <div class="modal-content">
+            <h3>Manage Categories</h3>
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
+                <button class="btn-primary" style="width:auto;" @onclick="AddCategory">+</button>
+            </div>
+            <div style="max-height:200px; overflow-y:auto;">
+                @foreach (var c in myData.BillCategories.ToList())
+                {
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; color:white;">
+                        <span>@c</span>
+                        <button style="color:#e74c3c; background:none; border:none;" @onclick="() => DeleteCategory(c)">✕</button>
+                    </div>
+                }
+            </div>
+            <button class="btn-trans" style="width:100%; margin-top:10px;" @onclick="() => isManageCatsVisible = false">Close</button>
+        </div>
+    </div>
+}
+
 @if (isPayModalVisible)
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Pay Bill: @selectedBillToPay?.Name</h3>
-            <p style="color:gray;">Amount: @selectedBillToPay?.Amount.ToString("N2")</p>
-            <label>Pay from Account:</label>
+            <h3>Pay Bill</h3>
+            <p>@selectedBillToPay?.Name - @selectedBillToPay?.Amount.ToString("N2")</p>
+            <label>From Account:</label>
             <select @bind="payFromAccountId" class="input-dark">
                 @foreach (var acc in myData.Accounts)
                 {
                     <option value="@acc.Id">@acc.Name (@acc.Balance.ToString("N0"))</option>
                 }
             </select>
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn-primary" @onclick="ConfirmPayBill" style="flex:1;">Confirm Pay</button>
-                <button class="btn-trans" @onclick="() => isPayModalVisible = false" style="flex:1;">Cancel</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" @onclick="ConfirmPayBill">Pay</button>
+                <button class="btn-trans" @onclick="() => isPayModalVisible = false">Cancel</button>
             </div>
         </div>
     </div>
@@ -108,6 +148,7 @@
         padding: 12px;
         border-radius: 8px;
         margin-bottom: 10px;
+        box-sizing: border-box;
     }
 
     .btn-primary {
@@ -120,14 +161,6 @@
         cursor: pointer;
     }
 
-    .btn-trans {
-        background: transparent;
-        color: gray;
-        border: none;
-        padding: 10px;
-        cursor: pointer;
-    }
-
     .btn-pay {
         background: #ff9800;
         color: black;
@@ -135,6 +168,14 @@
         padding: 5px 15px;
         border-radius: 5px;
         font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-trans {
+        background: transparent;
+        color: gray;
+        border: none;
+        padding: 10px;
         cursor: pointer;
     }
 
@@ -175,14 +216,19 @@
     AppData myData = new AppData();
     Bill currentBill = new Bill { DueDate = DateTime.Now };
     bool isEditMode = false;
-
+    bool isManageCatsVisible = false;
+    string newCatName = "";
     bool isPayModalVisible = false;
     Bill? selectedBillToPay;
     string payFromAccountId = "";
 
     protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
 
-    void EditBill(Bill b) { currentBill = b; isEditMode = true; }
+    async Task EditBill(Bill b)
+    {
+        currentBill = b; isEditMode = true;
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
     void CancelEdit() { currentBill = new Bill { DueDate = DateTime.Now }; isEditMode = false; }
 
     async Task SaveBill()
@@ -192,10 +238,21 @@
         await Firebase.Save(myData); CancelEdit();
     }
 
-    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); if (isEditMode && currentBill == b) CancelEdit(); } }
+    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); } }
+
+    async Task ResetMonthlyBills()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Start new month? Mark recurring bills as unpaid?"))
+        {
+            foreach (var b in myData.Bills.Where(x => x.IsRecurring)) { b.IsPaid = false; b.PaymentDate = null; }
+            await Firebase.Save(myData);
+        }
+    }
+
+    async Task AddCategory() { if (!string.IsNullOrEmpty(newCatName)) { myData.BillCategories.Add(newCatName); await Firebase.Save(myData); newCatName = ""; } }
+    async Task DeleteCategory(string c) { myData.BillCategories.Remove(c); await Firebase.Save(myData); }
 
     void InitiatePayBill(Bill b) { if (!myData.Accounts.Any()) return; selectedBillToPay = b; payFromAccountId = myData.Accounts.First().Id; isPayModalVisible = true; }
-
     async Task ConfirmPayBill()
     {
         if (selectedBillToPay == null) return;
@@ -204,7 +261,7 @@
         {
             if (acc.Balance < selectedBillToPay.Amount) { await JS.InvokeVoidAsync("alert", "Insufficient balance!"); return; }
             acc.Balance -= selectedBillToPay.Amount;
-            myData.History.Add(new Transaction { Desc = $"Paid Bill: {selectedBillToPay.Name}", Category = "Bills", Amount = selectedBillToPay.Amount, AmountDisplay = $"-{selectedBillToPay.Amount:N2}", ColorHex = "#e74c3c", Date = DateTime.Now });
+            myData.History.Add(new Transaction { Desc = $"Paid: {selectedBillToPay.Name}", Category = "Bills", Amount = selectedBillToPay.Amount, AmountDisplay = $"-{selectedBillToPay.Amount:N2}", ColorHex = "#e74c3c", Date = DateTime.Now });
             selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;
             await Firebase.Save(myData); isPayModalVisible = false;
         }

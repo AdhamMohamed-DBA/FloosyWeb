@@ -4,11 +4,11 @@
 @inject IJSRuntime JS
 
 <div style="padding: 20px; padding-bottom: 80px;">
-    <h3 style="margin-top:0; margin-bottom:20px;">Full History 📜</h3>
+    <h3 style="margin-top:0; margin-bottom:20px;">History 📜</h3>
 
     @if (!myData.History.Any())
     {
-        <p style="text-align:center; color:gray; margin-top:50px;">No transactions found.</p>
+        <p style="text-align:center; color:gray;">No transactions.</p>
     }
     else
     {
@@ -22,38 +22,72 @@
                 </div>
                 <div style="text-align:right;">
                     <div style="font-weight:bold; font-size:1.2em; color:@t.ColorHex; margin-bottom:5px;">@t.AmountDisplay</div>
-                    <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                    <div style="display:flex; gap:10px; justify-content:flex-end;">
+                        <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => EditTrans(t)">✏️</button>
+                        <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                    </div>
                 </div>
             </div>
         }
     }
 </div>
 
+@if (isEditVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Edit Transaction</h3>
+            <input @bind="selectedTrans.Desc" class="input-dark" placeholder="Description" />
+            <input type="number" @bind="selectedTrans.Amount" class="input-dark" placeholder="Amount" />
+
+            <label style="font-size:12px; color:gray;">Update Balance on Account:</label>
+            <select @bind="editAccountId" class="input-dark">
+                <option value="">Don't Change Balance (Text Only)</option>
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">@acc.Name</option>
+                }
+            </select>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" @onclick="SaveEdit">Save</button>
+                <button class="btn-trans" @onclick="() => isEditVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (isDeleteModalVisible)
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Delete Transaction?</h3>
-            <p style="color:gray; font-size:12px;">@selectedTrans.Desc (@selectedTrans.AmountDisplay)</p>
-
-            <p style="margin-bottom:5px;">Refund Amount to Account?</p>
-            <select @bind="refundAccountId" style="width:100%; padding:10px; background:#333; color:white; border-radius:5px; border:none; margin-bottom:15px;">
-                <option value="">Don't Refund (Just Delete)</option>
+            <h3>Delete?</h3>
+            <p>@selectedTrans.Desc</p>
+            <label>Refund To:</label>
+            <select @bind="refundAccountId" class="input-dark">
+                <option value="">Just Delete</option>
                 @foreach (var acc in myData.Accounts)
                 {
-                    <option value="@acc.Id">Refund to: @acc.Name</option>
+                    <option value="@acc.Id">@acc.Name</option>
                 }
             </select>
-
-            <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDelete">Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteModalVisible = false">Cancel</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" style="background:#e74c3c;" @onclick="ExecuteDelete">Delete</button>
+                <button class="btn-trans" @onclick="() => isDeleteModalVisible = false">Cancel</button>
             </div>
         </div>
     </div>
 }
 
 <style>
+    .btn-trans {
+        background: transparent;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        color: #888;
+    }
+
     .modal-backdrop {
         position: fixed;
         top: 0;
@@ -76,6 +110,17 @@
         border: 1px solid #333;
     }
 
+    .input-dark {
+        width: 100%;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+    }
+
     .btn-primary {
         background-color: #00E676;
         color: black;
@@ -85,52 +130,57 @@
         font-weight: bold;
         cursor: pointer;
     }
-
-    .btn-trans {
-        background: transparent;
-        color: gray;
-        border: none;
-        padding: 10px;
-        cursor: pointer;
-    }
 </style>
 
 @code {
     AppData myData = new AppData();
-    bool isDeleteModalVisible = false;
-
-    // FIX 1: Initialized to avoid CS8618
     Transaction selectedTrans = new Transaction();
+    bool isEditVisible = false;
+    bool isDeleteModalVisible = false;
+    string editAccountId = "";
     string refundAccountId = "";
+    decimal oldAmount = 0;
 
     protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); }
 
-    void ConfirmDelete(Transaction t)
+    void EditTrans(Transaction t)
     {
         selectedTrans = t;
-        refundAccountId = "";
-        if (myData.Accounts.Any()) refundAccountId = myData.Accounts.First().Id;
-        isDeleteModalVisible = true;
+        oldAmount = t.Amount;
+        isEditVisible = true;
     }
+
+    async Task SaveEdit()
+    {
+        if (!string.IsNullOrEmpty(editAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
+            if (acc != null)
+            {
+                bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                if (isIncome) acc.Balance -= oldAmount; else acc.Balance += oldAmount;
+                if (isIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+            }
+        }
+        bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+        selectedTrans.AmountDisplay = (wasIncome ? "+" : "-") + selectedTrans.Amount.ToString("N2");
+        await Firebase.Save(myData);
+        isEditVisible = false;
+    }
+
+    void ConfirmDelete(Transaction t) { selectedTrans = t; isDeleteModalVisible = true; }
 
     async Task ExecuteDelete()
     {
-        // FIX 2: Ensure AmountDisplay is not null
-        string amountStr = selectedTrans.AmountDisplay ?? "0";
-
         if (!string.IsNullOrEmpty(refundAccountId))
         {
             var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
             if (acc != null)
             {
-                decimal amount = decimal.Parse(amountStr.Replace("+", "").Replace("-", ""));
-                if (amountStr.StartsWith("+")) acc.Balance -= amount;
-                else acc.Balance += amount;
+                bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                if (isIncome) acc.Balance -= selectedTrans.Amount; else acc.Balance += selectedTrans.Amount;
             }
         }
-
-        myData.History.Remove(selectedTrans);
-        await Firebase.Save(myData);
-        isDeleteModalVisible = false;
+        myData.History.Remove(selectedTrans); await Firebase.Save(myData); isDeleteModalVisible = false;
     }
 }

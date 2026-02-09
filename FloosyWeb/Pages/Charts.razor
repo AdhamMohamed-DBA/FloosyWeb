@@ -6,7 +6,7 @@
     <h3>Analytics @DateTime.Now.Year 📊</h3>
 
     <div class="card" style="padding:10px; margin-bottom:15px; background:#1f1f1f;">
-        <label style="color:gray; font-size:12px;">Select Month</label>
+        <label style="color:gray; font-size:12px;">Select Month (Starts on Day @myData.FinancialStartDay)</label>
         <select @bind="selectedMonth" style="width:100%; background:#333; color:white; padding:10px; border-radius:5px; border:none;">
             @foreach (var m in AvailableMonths)
             {
@@ -15,23 +15,27 @@
         </select>
     </div>
 
-    <div style="margin-bottom:5px; font-size:12px; color:gray;">Income vs Expense (This Month)</div>
+    <div style="margin-bottom:5px; font-size:12px; color:gray;">Income vs Expense</div>
+
     <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
-        @if (MonthIncome + MonthExpense > 0)
+        @if (TotalVolume > 0)
         {
-            <div style="width:@(IncomePct)%; background-color:#2ecc71; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">@IncomePct.ToString("0")%</div>
-            <div style="width:@(ExpensePct)%; background-color:#e74c3c; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">@ExpensePct.ToString("0")%</div>
+            <div style="width:@(IncomePct)%; background-color:#2ecc71; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">
+                @(IncomePct > 10 ? Math.Round(IncomePct) + "%" : "")
+            </div>
+            <div style="width:@(ExpensePct)%; background-color:#e74c3c; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">
+                @(ExpensePct > 10 ? Math.Round(ExpensePct) + "%" : "")
+            </div>
         }
         else
         {
-
             <div style="width:100%; text-align:center; color:gray; line-height:30px;">No Data</div>
         }
     </div>
 
     <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:20px;">
         <span style="color:#2ecc71;">+@MonthIncome.ToString("N0")</span>
-        <span style="color:#e74c3c;">-@MonthExpense.ToString("N0")</span>
+        <span style="color:#e74c3c;">-@Math.Abs(MonthExpense).ToString("N0")</span>
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
@@ -49,15 +53,32 @@
                     <span style="color:gray;">@item.AmountStr</span>
                 </div>
                 <div style="width:100%; background:#333; height:10px; border-radius:5px;">
-                    <div style="width:@(item.Pct * 100)%; background-color:@item.Color; height:100%; border-radius:5px; transition: width 0.5s;"></div>
+                    <div style="width:@(item.Pct * 100)%; background-color:@item.Color; height:100%; border-radius:5px;"></div>
                 </div>
             </div>
         }
     }
-    else
-    {
-        <p style="text-align:center; color:gray; margin-top:50px;">No charts data for this month.</p>
-    }
+
+    <div style="margin-top:30px; border-top: 1px solid #333; padding-top: 10px;">
+        <h4 style="margin-bottom:10px; color:#ddd;">Details for @selectedMonth</h4>
+        @if (FilteredHistory.Any())
+        {
+            @foreach (var t in FilteredHistory)
+            {
+                <div style="background:#1f1f1f; padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; color:white;">
+                    <div style="display:flex; flex-direction:column;">
+                        <span>@t.Desc</span>
+                        <small style="color:gray;">@t.Date.ToString("dd MMM") • @t.Category</small>
+                    </div>
+                    <span style="color:@t.ColorHex">@t.AmountDisplay</span>
+                </div>
+            }
+        }
+        else
+        {
+            <p style="color:gray;">No transactions.</p>
+        }
+    </div>
 </div>
 
 @code {
@@ -66,30 +87,55 @@
     bool isExpense = true;
     List<string> AvailableMonths = new List<string>();
 
-    decimal MonthIncome => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay));
-    decimal MonthExpense => myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay));
+    bool IsInSelectedMonth(DateTime date)
+    {
+        DateTime financialDate = date;
+        if (date.Day >= myData.FinancialStartDay) financialDate = date.AddMonths(1);
+        return financialDate.ToString("MMMM yyyy") == selectedMonth;
+    }
 
-    decimal ParseAmount(string? display) { if (string.IsNullOrEmpty(display)) return 0; string clean = display.Replace("+", "").Replace("-", ""); if (decimal.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result)) return result; return 0; }
+    decimal MonthIncome => myData.History.Where(x => IsInSelectedMonth(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
 
-    double IncomePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthIncome / (MonthIncome + MonthExpense)) * 100);
-    double ExpensePct => (double)(MonthIncome + MonthExpense == 0 ? 0 : (MonthExpense / (MonthIncome + MonthExpense)) * 100);
+    // 🔥 FIX: Sum amounts (assumed stored as positive value in Amount field, regardless of display)
+    // If your Amount is stored negative for expense, use Math.Abs in sum.
+    // Assuming Amount is absolute:
+    decimal MonthExpense => myData.History.Where(x => IsInSelectedMonth(x.Date) && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
+
+    // 🔥 FIX: Total Volume uses ABSOLUTE sum
+    decimal TotalVolume => MonthIncome + Math.Abs(MonthExpense);
+
+    double IncomePct => TotalVolume == 0 ? 0 : (double)(MonthIncome / TotalVolume) * 100;
+    double ExpensePct => TotalVolume == 0 ? 0 : (double)(Math.Abs(MonthExpense) / TotalVolume) * 100;
+
+    List<Transaction> FilteredHistory => myData.History.Where(x => IsInSelectedMonth(x.Date)).OrderByDescending(x => x.Date).ToList();
 
     protected override async Task OnInitializedAsync()
     {
         var year = DateTime.Now.Year;
         for (int i = 1; i <= 12; i++) { AvailableMonths.Add(new DateTime(year, i, 1).ToString("MMMM yyyy")); }
-        selectedMonth = DateTime.Now.ToString("MMMM yyyy");
+        for (int i = 1; i <= 3; i++) { AvailableMonths.Add(new DateTime(year + 1, i, 1).ToString("MMMM yyyy")); }
         myData = await Firebase.Load();
+
+        var today = DateTime.Now;
+        selectedMonth = (today.Day >= myData.FinancialStartDay) ? today.AddMonths(1).ToString("MMMM yyyy") : today.ToString("MMMM yyyy");
     }
 
     List<ChartItem> ChartData
     {
         get
         {
-            var filtered = myData.History.Where(x => x.Date.ToString("MMMM yyyy") == selectedMonth && (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+"))).ToList();
-            double total = filtered.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay)));
+            var filtered = myData.History.Where(x => IsInSelectedMonth(x.Date) && (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+"))).ToList();
+
+            // 🔥 FIX: Sum
+            double total = filtered.Sum(x => (double)x.Amount);
+
             if (total == 0) return new List<ChartItem>();
-            return filtered.GroupBy(x => x.Category ?? "Other").Select(g => { double val = g.Sum(x => (double)(x.Amount != 0 ? x.Amount : ParseAmount(x.AmountDisplay))); return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" }; }).OrderByDescending(x => x.Pct).ToList();
+
+            return filtered.GroupBy(x => x.Category ?? "Other").Select(g =>
+            {
+                double val = g.Sum(x => (double)x.Amount);
+                return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" };
+            }).OrderByDescending(x => x.Pct).ToList();
         }
     }
 }

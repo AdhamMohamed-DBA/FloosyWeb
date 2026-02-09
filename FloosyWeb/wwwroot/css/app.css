@@ -1,4 +1,4 @@
-body {
+﻿body {
     background-color: #121212;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -15,26 +15,39 @@ body {
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
-input {
+input, select {
     background-color: #333;
     color: white;
     border: none;
-    border-radius: 5px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 12px;
     width: 100%;
     margin-bottom: 10px;
-    box-sizing: border-box; /* Important fix */
+    box-sizing: border-box;
+    outline: none;
 }
 
+/* Default Button Style */
 button {
     border-radius: 10px;
     padding: 10px 15px;
     border: none;
     cursor: pointer;
     font-weight: bold;
-    width: 100%;
+    width: 100%; /* Default width full */
     margin-bottom: 5px;
+    transition: transform 0.1s;
 }
+
+    button:active {
+        transform: scale(0.98);
+    }
+
+    /* 🔥 Fix for ADD button: Auto width */
+    button.btn-auto {
+        width: auto !important;
+        display: inline-block;
+    }
 
 .btn-primary {
     background-color: #00E676;
@@ -60,6 +73,7 @@ button {
 .bottom-nav {
     position: fixed;
     bottom: 0;
+    left: 0;
     width: 100%;
     background-color: #1f1f1f;
     display: flex;
@@ -72,9 +86,12 @@ button {
 .nav-item {
     color: gray;
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
     text-decoration: none;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
     .nav-item.active {
@@ -82,16 +99,22 @@ button {
     }
 
 .nav-icon {
-    font-size: 20px;
-    display: block;
+    width: 24px;
+    height: 24px;
+    margin-bottom: 4px;
+    object-fit: contain;
 }
 
-/* Hide Scrollbar for cleaner look */
+/* Hide Scrollbar */
 ::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
     background: #333;
-    border-radius: 5px;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #121212;
 }

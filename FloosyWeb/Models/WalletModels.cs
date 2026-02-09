@@ -4,13 +4,16 @@ namespace FloosyWeb.Models;
 
 public class AppData
 {
-    public ObservableCollection<Account> Accounts { get; set; } = new();
-    public ObservableCollection<Bill> Bills { get; set; } = new();
-    public ObservableCollection<Transaction> History { get; set; } = new();
+    public ObservableCollection<Account> Accounts { get; set; } = [];
+    public ObservableCollection<Bill> Bills { get; set; } = [];
+    public ObservableCollection<Transaction> History { get; set; } = [];
 
-    public ObservableCollection<string> IncomeCategories { get; set; } = new();
-    public ObservableCollection<string> ExpenseCategories { get; set; } = new();
-    public ObservableCollection<string> BillCategories { get; set; } = new();
+    public ObservableCollection<string> IncomeCategories { get; set; } = [];
+    public ObservableCollection<string> ExpenseCategories { get; set; } = [];
+    public ObservableCollection<string> BillCategories { get; set; } = [];
+
+    // 🔥 NEW: Bedayet el-shahr el-maly (Default 1)
+    public int FinancialStartDay { get; set; } = 1;
 }
 
 public class Account
