@@ -73,5 +73,14 @@
     <script>
         window.scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
     </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .then(reg => console.log('SW Registered!', reg.scope))
+                .catch(err => console.log('SW Failed!', err));
+        }
+    </script>
+
 </body>
 </html>
