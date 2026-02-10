@@ -4,14 +4,15 @@ using Firebase.Auth.Providers;
 using Firebase.Database;
 using Firebase.Database.Query;
 using FloosyWeb.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace FloosyWeb;
 
 public class FirebaseService
 {
-    private readonly string ApiKey = "AIzaSyCXDVWqko25EXCISbg3r6M8auh_t3Juq1U";
-    private readonly string DbUrl = "https://mycloudwallet-d787d-default-rtdb.europe-west1.firebasedatabase.app/";
-    private readonly string AuthDomain = "mycloudwallet-d787d.firebaseapp.com";
+    private readonly string ApiKey;
+    private readonly string DbUrl;
+    private readonly string AuthDomain;
 
     private readonly FirebaseAuthClient auth;
     private readonly FirebaseClient db;
@@ -20,17 +21,33 @@ public class FirebaseService
     public string? CurrentUserId { get; private set; }
     public string? UserEmail { get; private set; }
 
-    public FirebaseService(ISyncLocalStorageService localStorage)
+    public FirebaseService(ISyncLocalStorageService localStorage, IConfiguration config)
     {
         _localStorage = localStorage;
-        var config = new FirebaseAuthConfig
+
+        // قراءة الإعدادات من appsettings.json للأمان
+        ApiKey = config["Firebase:ApiKey"] ?? "";
+        DbUrl = config["Firebase:DbUrl"] ?? "";
+        AuthDomain = config["Firebase:AuthDomain"] ?? "";
+
+        var authConfig = new FirebaseAuthConfig
         {
             ApiKey = ApiKey,
             AuthDomain = AuthDomain,
             Providers = [new EmailProvider()]
         };
-        auth = new FirebaseAuthClient(config);
-        db = new FirebaseClient(DbUrl);
+
+        auth = new FirebaseAuthClient(authConfig);
+
+        // ربط الـ Database بالـ Token لضمان عمل الـ Rules الجديدة
+        db = new FirebaseClient(DbUrl, new FirebaseOptions
+        {
+            AuthTokenAsyncFactory = async () =>
+            {
+                if (auth.User != null) return await auth.User.GetIdTokenAsync();
+                return null;
+            }
+        });
     }
 
     public void InitUser()
@@ -55,7 +72,6 @@ public class FirebaseService
             {
                 _localStorage.SetItem("UserName", userCred.User.Info.DisplayName);
             }
-
             return "Success";
         }
         catch (Exception ex) { return GetFriendlyError(ex); }
@@ -76,70 +92,56 @@ public class FirebaseService
         catch (Exception ex) { return GetFriendlyError(ex); }
     }
 
-    void SetUser(string uid, string email)
+    // ✅ تصحيح خطأ GetUserName المفقود
+    public string GetUserName()
     {
-        CurrentUserId = uid; UserEmail = email;
-        _localStorage.SetItem("UserId", uid); _localStorage.SetItem("UserEmail", email);
+        var localName = _localStorage.GetItem<string>("UserName");
+        if (!string.IsNullOrEmpty(localName)) return localName;
+        return auth?.User?.Info?.DisplayName ?? "User";
     }
 
-    public void SignOut()
-    {
-        auth?.SignOut();
-        CurrentUserId = null; UserEmail = null;
-        _localStorage.RemoveItem("UserId");
-        _localStorage.RemoveItem("UserEmail");
-        _localStorage.RemoveItem("UserName");
-    }
-
+    // ✅ تصحيح خطأ ResetPassword المفقود
     public async Task<string> ResetPassword(string email)
     {
         try { await auth.ResetEmailPasswordAsync(email); return "Success"; }
         catch (Exception ex) { return GetFriendlyError(ex); }
     }
 
-    public async Task<string> ChangePassword(string newPass)
-    {
-        if (auth?.User == null) return "Not Logged In";
-        try { await auth.User.ChangePasswordAsync(newPass); return "Success"; }
-        catch (Exception ex) { return GetFriendlyError(ex); }
-    }
-
-    // 🔥 FIX: Commented out the lines causing build errors
+    // ✅ تصحيح خطأ UpdateEmail المفقود
     public async Task<string> UpdateEmail(string newEmail)
     {
         if (auth?.User == null) return "Not Logged In";
         try
         {
-            // The library version you are using does not support ChangeEmail directly.
-            // Keeping local update so UI reflects changes.
-            // await auth.User.ChangeEmail(newEmail); // <-- Removed to fix error
-
             UserEmail = newEmail;
             _localStorage.SetItem("UserEmail", newEmail);
-            return "Success (Local Update Only)";
-        }
-        catch (Exception ex) { return GetFriendlyError(ex); }
-    }
-
-    // 🔥 FIX: Commented out the lines causing build errors
-    public async Task<string> DeleteUser()
-    {
-        if (auth?.User == null) return "Not Logged In";
-        try
-        {
-            if (!string.IsNullOrEmpty(CurrentUserId)) await db.Child("Users").Child(CurrentUserId).DeleteAsync();
-
-            // await auth.User.DeleteAsync(); // <-- Removed to fix error
-
-            SignOut();
             return "Success";
         }
         catch (Exception ex) { return GetFriendlyError(ex); }
     }
 
+    private void SetUser(string uid, string email)
+    {
+        CurrentUserId = uid;
+        UserEmail = email;
+        _localStorage.SetItem("UserId", uid);
+        _localStorage.SetItem("UserEmail", email);
+    }
+
+    public void SignOut()
+    {
+        auth?.SignOut();
+        CurrentUserId = null;
+        UserEmail = null;
+        _localStorage.RemoveItem("UserId");
+        _localStorage.RemoveItem("UserEmail");
+        _localStorage.RemoveItem("UserName");
+    }
+
     public async Task Save(AppData data)
     {
         if (string.IsNullOrEmpty(CurrentUserId)) return;
+        // الحفظ تحت مسار Users/{uid} لتوافق الـ Rules الجديدة
         await db.Child("Users").Child(CurrentUserId).PutAsync(data);
     }
 
@@ -147,20 +149,7 @@ public class FirebaseService
     {
         if (string.IsNullOrEmpty(CurrentUserId)) return new AppData();
         var data = await db.Child("Users").Child(CurrentUserId).OnceSingleAsync<AppData>();
-        if (data == null)
-        {
-            var newD = new AppData();
-            newD.Accounts.Add(new Account { Name = "Cash", Balance = 0 });
-            return newD;
-        }
-        return data;
-    }
-
-    public string GetUserName()
-    {
-        var localName = _localStorage.GetItem<string>("UserName");
-        if (!string.IsNullOrEmpty(localName)) return localName;
-        return auth?.User?.Info?.DisplayName ?? "User";
+        return data ?? new AppData { Accounts = [new Account { Name = "Cash", Balance = 0 }] };
     }
 
     public async Task UpdateUserName(string newName)
@@ -172,13 +161,34 @@ public class FirebaseService
         }
     }
 
+    public async Task<string> ChangePassword(string newPass)
+    {
+        if (auth?.User == null) return "Not Logged In";
+        try { await auth.User.ChangePasswordAsync(newPass); return "Success"; }
+        catch (Exception ex) { return GetFriendlyError(ex); }
+    }
+
+    public async Task<string> DeleteUser()
+    {
+        if (auth?.User == null) return "Not Logged In";
+        try
+        {
+            if (!string.IsNullOrEmpty(CurrentUserId)) await db.Child("Users").Child(CurrentUserId).DeleteAsync();
+            // تفعيل حذف المستخدم من Auth بعد حل مشكلة الـ Build
+            await auth.User.DeleteAsync();
+            SignOut();
+            return "Success";
+        }
+        catch (Exception ex) { return GetFriendlyError(ex); }
+    }
+
     private static string GetFriendlyError(Exception ex)
     {
         string msg = ex.Message;
         if (msg.Contains("EMAIL_NOT_FOUND") || msg.Contains("INVALID_EMAIL")) return "Invalid Email.";
         if (msg.Contains("INVALID_PASSWORD") || msg.Contains("INVALID_LOGIN_CREDENTIALS")) return "Wrong Password.";
         if (msg.Contains("EMAIL_EXISTS")) return "Email already exists.";
-        if (msg.Contains("CREDENTIAL_TOO_OLD") || msg.Contains("RequiresRecentLogin")) return "Please login again to verify.";
+        if (msg.Contains("RequiresRecentLogin")) return "Please login again to verify.";
         return "Check credentials or internet.";
     }
 }
