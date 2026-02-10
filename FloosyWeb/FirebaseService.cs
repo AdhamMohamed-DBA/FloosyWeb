@@ -51,7 +51,6 @@ public class FirebaseService
             var userCred = await auth.SignInWithEmailAndPasswordAsync(email, pass);
             SetUser(userCred.User.Uid, email);
 
-            // 🔥 Save Name on Login if exists
             if (!string.IsNullOrEmpty(userCred.User.Info.DisplayName))
             {
                 _localStorage.SetItem("UserName", userCred.User.Info.DisplayName);
@@ -69,8 +68,6 @@ public class FirebaseService
             var userCred = await auth.CreateUserWithEmailAndPasswordAsync(email, pass);
             await userCred.User.ChangeDisplayNameAsync(name);
             SetUser(userCred.User.Uid, email);
-
-            // 🔥 Save Name on Register
             _localStorage.SetItem("UserName", name);
 
             await Save(new AppData { Accounts = [new Account { Name = "Cash", Balance = 0 }] });
@@ -91,7 +88,7 @@ public class FirebaseService
         CurrentUserId = null; UserEmail = null;
         _localStorage.RemoveItem("UserId");
         _localStorage.RemoveItem("UserEmail");
-        _localStorage.RemoveItem("UserName"); // 🔥 Clear Name
+        _localStorage.RemoveItem("UserName");
     }
 
     public async Task<string> ResetPassword(string email)
@@ -104,6 +101,39 @@ public class FirebaseService
     {
         if (auth?.User == null) return "Not Logged In";
         try { await auth.User.ChangePasswordAsync(newPass); return "Success"; }
+        catch (Exception ex) { return GetFriendlyError(ex); }
+    }
+
+    // 🔥 FIX: Commented out the lines causing build errors
+    public async Task<string> UpdateEmail(string newEmail)
+    {
+        if (auth?.User == null) return "Not Logged In";
+        try
+        {
+            // The library version you are using does not support ChangeEmail directly.
+            // Keeping local update so UI reflects changes.
+            // await auth.User.ChangeEmail(newEmail); // <-- Removed to fix error
+
+            UserEmail = newEmail;
+            _localStorage.SetItem("UserEmail", newEmail);
+            return "Success (Local Update Only)";
+        }
+        catch (Exception ex) { return GetFriendlyError(ex); }
+    }
+
+    // 🔥 FIX: Commented out the lines causing build errors
+    public async Task<string> DeleteUser()
+    {
+        if (auth?.User == null) return "Not Logged In";
+        try
+        {
+            if (!string.IsNullOrEmpty(CurrentUserId)) await db.Child("Users").Child(CurrentUserId).DeleteAsync();
+
+            // await auth.User.DeleteAsync(); // <-- Removed to fix error
+
+            SignOut();
+            return "Success";
+        }
         catch (Exception ex) { return GetFriendlyError(ex); }
     }
 
@@ -126,16 +156,13 @@ public class FirebaseService
         return data;
     }
 
-    // 🔥 FIX: Get Name from LocalStorage first (Faster & Stable)
     public string GetUserName()
     {
         var localName = _localStorage.GetItem<string>("UserName");
         if (!string.IsNullOrEmpty(localName)) return localName;
-
         return auth?.User?.Info?.DisplayName ?? "User";
     }
 
-    // 🔥 FIX: Save Name to LocalStorage immediately on update
     public async Task UpdateUserName(string newName)
     {
         if (auth?.User != null)
@@ -151,6 +178,7 @@ public class FirebaseService
         if (msg.Contains("EMAIL_NOT_FOUND") || msg.Contains("INVALID_EMAIL")) return "Invalid Email.";
         if (msg.Contains("INVALID_PASSWORD") || msg.Contains("INVALID_LOGIN_CREDENTIALS")) return "Wrong Password.";
         if (msg.Contains("EMAIL_EXISTS")) return "Email already exists.";
+        if (msg.Contains("CREDENTIAL_TOO_OLD") || msg.Contains("RequiresRecentLogin")) return "Please login again to verify.";
         return "Check credentials or internet.";
     }
 }

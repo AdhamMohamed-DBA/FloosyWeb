@@ -8,7 +8,22 @@
 
     <div style="text-align:center; margin-bottom:30px;">
         <img src="images/appicon.png" style="width:80px; height:80px; border-radius:15px;" />
-        <h3 style="margin-top:10px;">Settings</h3>
+        <h3 style="margin: 10px 0 5px 0;">Settings</h3>
+        <p style="color:gray; font-size:14px; margin:0;">@userEmail</p>
+    </div>
+
+    <div class="setting-card">
+        <label>Account Management</label>
+
+        <div class="input-stack" style="margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:20px;">
+            <label style="font-size:11px; color:#ccc;">Change Email</label>
+            <input @bind="newEmailInput" class="input-dark" placeholder="New Email Address" />
+            <input @bind="emailPassInput" type="password" class="input-dark" placeholder="Current Password" />
+            <button class="btn-small full-width" @onclick="DoUpdateEmail">Update Email</button>
+        </div>
+
+        <label style="font-size:11px; color:#e74c3c;">Danger Zone</label>
+        <button class="btn-logout" @onclick="() => isDeleteConfirmVisible = true">🗑️ Delete Account</button>
     </div>
 
     <div class="setting-card">
@@ -41,13 +56,41 @@
 
     <div class="setting-card">
         <label>Support</label>
-        <a href="https://wa.me/201000000000" target="_blank" class="btn-whatsapp">
+        <a href="https://wa.me/201009582510" target="_blank" class="btn-whatsapp">
             <span>💬</span> Contact via WhatsApp
         </a>
     </div>
 
-    <button class="btn-logout" @onclick="SignOut">Sign Out</button>
+    <button class="btn-logout" style="margin-top:20px;" @onclick="SignOut">Sign Out</button>
 </div>
+
+@if (isMessageVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center;">
+            <h3 style="margin-top:0; color:@(messageType == "Success" ? "#00E676" : "#e74c3c");">@messageTitle</h3>
+            <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
+            <button class="btn-small full-width" @onclick="() => isMessageVisible = false">OK</button>
+        </div>
+    </div>
+}
+
+@if (isDeleteConfirmVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center; border: 1px solid #e74c3c;">
+            <h3 style="margin-top:0; color:#e74c3c;">Delete Account?</h3>
+            <p style="color:#ccc; margin-bottom:15px; font-size:14px;">This action cannot be undone. All your data will be lost.</p>
+
+            <input @bind="deletePassInput" type="password" class="input-dark" placeholder="Confirm Password" style="margin-bottom:15px;" />
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-small full-width" style="background:#e74c3c; color:white;" @onclick="DoDeleteAccount">Yes, Delete</button>
+                <button class="btn-small full-width" style="background:#333; color:white;" @onclick="() => isDeleteConfirmVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
 
 <style>
     .setting-card {
@@ -118,7 +161,29 @@
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
-        margin-top: 10px;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 300px;
+        background: #1f1f1f;
+        padding: 25px 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
 </style>
 
@@ -126,6 +191,20 @@
     AppData myData = new AppData();
     string newName = "", oldPass = "", newPass = "";
     int financialDay = 1;
+    string userEmail = "";
+
+    string newEmailInput = "";
+    string emailPassInput = "";
+    string deletePassInput = "";
+    bool isDeleteConfirmVisible = false;
+
+    bool isMessageVisible = false;
+    string messageTitle = "", messageBody = "", messageType = "Info";
+
+    void ShowMessage(string title, string body, string type = "Info")
+    {
+        messageTitle = title; messageBody = body; messageType = type; isMessageVisible = true;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,40 +212,85 @@
         financialDay = myData.FinancialStartDay;
         if (financialDay < 1) financialDay = 1;
 
-        // 🔥 FIX: Pre-fill the input with the current name
         newName = Firebase.GetUserName();
+        userEmail = Firebase.UserEmail ?? "No Email";
     }
 
     async Task UpdateFinancialDay()
     {
-        if (financialDay < 1 || financialDay > 28) { await JS.InvokeVoidAsync("alert", "Day must be between 1 and 28"); return; }
+        if (financialDay < 1 || financialDay > 28) { ShowMessage("Error", "Day must be between 1 and 28", "Error"); return; }
         myData.FinancialStartDay = financialDay;
         await Firebase.Save(myData);
-        await JS.InvokeVoidAsync("alert", "Financial start day updated!");
+        ShowMessage("Success", "Financial start day updated!", "Success");
     }
 
     async Task UpdateName()
     {
         if (string.IsNullOrWhiteSpace(newName)) return;
-
-        // Update in Firebase and LocalStorage
         await Firebase.UpdateUserName(newName);
-
-        await JS.InvokeVoidAsync("alert", "Name updated!");
-        // Reload to reflect changes everywhere
-        Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        ShowMessage("Success", "Name updated!", "Success");
     }
 
     async Task UpdatePass()
     {
-        if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { await JS.InvokeVoidAsync("alert", "Enter old and new password."); return; }
-        if (string.IsNullOrEmpty(Firebase.UserEmail)) { await JS.InvokeVoidAsync("alert", "Error: User email not found."); return; }
+        if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { ShowMessage("Error", "Enter old and new password.", "Error"); return; }
+        // 🔥 FIX: Check for Null Email before calling Login (CS8604)
+        if (string.IsNullOrEmpty(Firebase.UserEmail)) { ShowMessage("Error", "User email not found.", "Error"); return; }
 
-        var verify = await Firebase.Login(Firebase.UserEmail, oldPass);
-        if (verify != "Success") { await JS.InvokeVoidAsync("alert", "Old password incorrect!"); return; }
+        // Use '?? ""' safely because we checked it's not null/empty above
+        var verify = await Firebase.Login(Firebase.UserEmail ?? "", oldPass);
+        if (verify != "Success") { ShowMessage("Failed", "Old password incorrect!", "Error"); return; }
 
         var res = await Firebase.ChangePassword(newPass);
-        await JS.InvokeVoidAsync("alert", res); oldPass = ""; newPass = "";
+        ShowMessage(res == "Success" ? "Success" : "Info", res, res == "Success" ? "Success" : "Error");
+        oldPass = ""; newPass = "";
+    }
+
+    async Task DoUpdateEmail()
+    {
+        if (string.IsNullOrWhiteSpace(newEmailInput) || string.IsNullOrWhiteSpace(emailPassInput))
+        {
+            ShowMessage("Error", "Enter new email and current password.", "Error");
+            return;
+        }
+
+        var currentEmail = Firebase.UserEmail ?? "";
+        if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
+
+        var verify = await Firebase.Login(currentEmail, emailPassInput);
+        if (verify != "Success") { ShowMessage("Failed", "Password incorrect!", "Error"); return; }
+
+        var res = await Firebase.UpdateEmail(newEmailInput);
+        if (res == "Success")
+        {
+            userEmail = newEmailInput;
+            ShowMessage("Success", "Email updated successfully!", "Success");
+            newEmailInput = ""; emailPassInput = "";
+        }
+        else ShowMessage("Error", res, "Error");
+    }
+
+    async Task DoDeleteAccount()
+    {
+        if (string.IsNullOrWhiteSpace(deletePassInput)) { return; }
+
+        var currentEmail = Firebase.UserEmail ?? "";
+        if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
+
+        var verify = await Firebase.Login(currentEmail, deletePassInput);
+        if (verify != "Success")
+        {
+            ShowMessage("Failed", "Password incorrect! Cannot delete.", "Error");
+            return;
+        }
+
+        var res = await Firebase.DeleteUser();
+        if (res == "Success") Nav.NavigateTo("", forceLoad: true);
+        else
+        {
+            ShowMessage("Error", res, "Error");
+            isDeleteConfirmVisible = false;
+        }
     }
 
     void SignOut()

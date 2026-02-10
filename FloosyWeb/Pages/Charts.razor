@@ -3,19 +3,27 @@
 @inject FirebaseService Firebase
 
 <div style="padding: 20px; padding-bottom: 80px;">
-    <h3>Analytics @DateTime.Now.Year 📊</h3>
+    <h3>Analytics 📊</h3>
 
-    <div class="card" style="padding:10px; margin-bottom:15px; background:#1f1f1f;">
-        <label style="color:gray; font-size:12px;">Select Month (Starts on Day @myData.FinancialStartDay)</label>
-        <select @bind="selectedMonth" style="width:100%; background:#333; color:white; padding:10px; border-radius:5px; border:none;">
-            @foreach (var m in AvailableMonths)
-            {
-                <option value="@m">@m</option>
-            }
-        </select>
+    <div class="card" style="padding:15px; margin-bottom:15px; background:#1f1f1f;">
+
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#333" : "#00E676"); color:@(isLifetime ? "white" : "black")" @onclick="() => isLifetime = false">📅 Monthly</button>
+            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#00E676" : "#333"); color:@(isLifetime ? "black" : "white")" @onclick="() => isLifetime = true">♾️ Lifetime</button>
+        </div>
+
+        @if (!isLifetime)
+        {
+            <label style="color:gray; font-size:12px;">Select Month</label>
+            <input type="month"
+                   value="@selectedMonthStr"
+                   @onchange="@(e => selectedMonthStr = e.Value?.ToString() ?? "")"
+                   class="input-dark"
+                   style="margin-bottom:0;" />
+        }
     </div>
 
-    <div style="margin-bottom:5px; font-size:12px; color:gray;">Income vs Expense</div>
+    <div style="margin-bottom:5px; font-size:12px; color:gray;">@(isLifetime ? "Lifetime Total" : "Selected Month")</div>
 
     <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
         @if (TotalVolume > 0)
@@ -34,13 +42,13 @@
     </div>
 
     <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:20px;">
-        <span style="color:#2ecc71;">+@MonthIncome.ToString("N0")</span>
-        <span style="color:#e74c3c;">-@Math.Abs(MonthExpense).ToString("N0")</span>
+        <span style="color:#2ecc71;">+@CurrentIncome.ToString("N0")</span>
+        <span style="color:#e74c3c;">-@Math.Abs(CurrentExpense).ToString("N0")</span>
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false">Income Charts</button>
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true">Expense Charts</button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false">Income</button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true">Expense</button>
     </div>
 
     @if (ChartData.Any())
@@ -53,14 +61,14 @@
                     <span style="color:gray;">@item.AmountStr</span>
                 </div>
                 <div style="width:100%; background:#333; height:10px; border-radius:5px;">
-                    <div style="width:@(item.Pct * 100)%; background-color:@item.Color; height:100%; border-radius:5px;"></div>
+                    <div style="width:@((int)(item.Pct * 100))%; background-color:@item.Color; height:100%; border-radius:5px;"></div>
                 </div>
             </div>
         }
     }
 
     <div style="margin-top:30px; border-top: 1px solid #333; padding-top: 10px;">
-        <h4 style="margin-bottom:10px; color:#ddd;">Details for @selectedMonth</h4>
+        <h4 style="margin-bottom:10px; color:#ddd;">History</h4>
         @if (FilteredHistory.Any())
         {
             @foreach (var t in FilteredHistory)
@@ -68,7 +76,7 @@
                 <div style="background:#1f1f1f; padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; color:white;">
                     <div style="display:flex; flex-direction:column;">
                         <span>@t.Desc</span>
-                        <small style="color:gray;">@t.Date.ToString("dd MMM") • @t.Category</small>
+                        <small style="color:gray;">@t.Date.ToString("dd MMM yyyy") • @t.Category</small>
                     </div>
                     <span style="color:@t.ColorHex">@t.AmountDisplay</span>
                 </div>
@@ -76,59 +84,51 @@
         }
         else
         {
-            <p style="color:gray;">No transactions.</p>
+            <p style="color:gray;">No transactions found.</p>
         }
     </div>
 </div>
 
 @code {
     AppData myData = new AppData();
-    string selectedMonth = DateTime.Now.ToString("MMMM yyyy");
     bool isExpense = true;
-    List<string> AvailableMonths = new List<string>();
+    bool isLifetime = false;
 
-    bool IsInSelectedMonth(DateTime date)
-    {
-        DateTime financialDate = date;
-        if (date.Day >= myData.FinancialStartDay) financialDate = date.AddMonths(1);
-        return financialDate.ToString("MMMM yyyy") == selectedMonth;
-    }
-
-    decimal MonthIncome => myData.History.Where(x => IsInSelectedMonth(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
-
-    // 🔥 FIX: Sum amounts (assumed stored as positive value in Amount field, regardless of display)
-    // If your Amount is stored negative for expense, use Math.Abs in sum.
-    // Assuming Amount is absolute:
-    decimal MonthExpense => myData.History.Where(x => IsInSelectedMonth(x.Date) && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
-
-    // 🔥 FIX: Total Volume uses ABSOLUTE sum
-    decimal TotalVolume => MonthIncome + Math.Abs(MonthExpense);
-
-    double IncomePct => TotalVolume == 0 ? 0 : (double)(MonthIncome / TotalVolume) * 100;
-    double ExpensePct => TotalVolume == 0 ? 0 : (double)(Math.Abs(MonthExpense) / TotalVolume) * 100;
-
-    List<Transaction> FilteredHistory => myData.History.Where(x => IsInSelectedMonth(x.Date)).OrderByDescending(x => x.Date).ToList();
+    // Default value as string to avoid binding errors
+    string selectedMonthStr = DateTime.Now.ToString("yyyy-MM");
 
     protected override async Task OnInitializedAsync()
     {
-        var year = DateTime.Now.Year;
-        for (int i = 1; i <= 12; i++) { AvailableMonths.Add(new DateTime(year, i, 1).ToString("MMMM yyyy")); }
-        for (int i = 1; i <= 3; i++) { AvailableMonths.Add(new DateTime(year + 1, i, 1).ToString("MMMM yyyy")); }
         myData = await Firebase.Load();
-
-        var today = DateTime.Now;
-        selectedMonth = (today.Day >= myData.FinancialStartDay) ? today.AddMonths(1).ToString("MMMM yyyy") : today.ToString("MMMM yyyy");
     }
+
+    bool IsInFilter(DateTime date)
+    {
+        if (isLifetime) return true;
+
+        if (!string.IsNullOrEmpty(selectedMonthStr) && DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate))
+        {
+            return date.Year == selectedDate.Year && date.Month == selectedDate.Month;
+        }
+        return false;
+    }
+
+    decimal CurrentIncome => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
+    decimal CurrentExpense => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
+    decimal TotalVolume => CurrentIncome + Math.Abs(CurrentExpense);
+
+    double IncomePct => TotalVolume == 0 ? 0 : (double)(CurrentIncome / TotalVolume) * 100;
+    double ExpensePct => TotalVolume == 0 ? 0 : (double)(Math.Abs(CurrentExpense) / TotalVolume) * 100;
+
+    List<Transaction> FilteredHistory => myData.History.Where(x => IsInFilter(x.Date)).OrderByDescending(x => x.Date).ToList();
 
     List<ChartItem> ChartData
     {
         get
         {
-            var filtered = myData.History.Where(x => IsInSelectedMonth(x.Date) && (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+"))).ToList();
+            var filtered = myData.History.Where(x => IsInFilter(x.Date) && (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+"))).ToList();
 
-            // 🔥 FIX: Sum
             double total = filtered.Sum(x => (double)x.Amount);
-
             if (total == 0) return new List<ChartItem>();
 
             return filtered.GroupBy(x => x.Category ?? "Other").Select(g =>

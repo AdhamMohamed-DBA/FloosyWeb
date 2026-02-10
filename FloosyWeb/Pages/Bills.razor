@@ -7,7 +7,7 @@
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
         <h3 style="margin:0;">Bills 🧾</h3>
-        <button style="background:#3498db; border:none; color:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; width: auto;" @onclick="ResetMonthlyBills">
+        <button style="background:#3498db; border:none; color:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; width: auto;" @onclick="() => isResetConfirmVisible = true">
             🔄 New Month
         </button>
     </div>
@@ -88,12 +88,51 @@
                     {
                         <button class="btn-pay" @onclick="() => InitiatePayBill(bill)">Pay</button>
                     }
-                    <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => DeleteBill(bill)">🗑️</button>
+                    <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => ConfirmDeleteBill(bill)">🗑️</button>
                 </div>
             </div>
         </div>
     }
 </div>
+
+@if (isMessageVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center;">
+            <h3 style="margin-top:0; color:#e74c3c;">@messageTitle</h3>
+            <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
+            <button class="btn-primary" style="padding:10px;" @onclick="() => isMessageVisible = false">OK</button>
+        </div>
+    </div>
+}
+
+@if (isDeleteBillConfirmVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center;">
+            <h3 style="color:#e74c3c;">Delete Bill?</h3>
+            <p style="color:#ccc;">Delete <b>@billToDelete?.Name</b>?</p>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteBill">Delete</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteBillConfirmVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isResetConfirmVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center;">
+            <h3 style="color:#3498db;">New Month?</h3>
+            <p style="color:#ccc;">Start new month? Mark recurring bills as unpaid?</p>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#3498db; flex:1;" @onclick="ExecuteResetMonthly">Yes</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isResetConfirmVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
 
 @if (isManageCatsVisible)
 {
@@ -209,16 +248,30 @@
         padding: 20px;
         border-radius: 15px;
         border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
 </style>
 
 @code {
     AppData myData = new AppData();
     Bill currentBill = new Bill { DueDate = DateTime.Now };
+
+    // UI Flags
     bool isEditMode = false;
     bool isManageCatsVisible = false;
-    string newCatName = "";
     bool isPayModalVisible = false;
+
+    // 🔥 New Modal Flags
+    bool isMessageVisible = false;
+    string messageTitle = "";
+    string messageBody = "";
+
+    bool isDeleteBillConfirmVisible = false;
+    Bill? billToDelete;
+
+    bool isResetConfirmVisible = false;
+
+    string newCatName = "";
     Bill? selectedBillToPay;
     string payFromAccountId = "";
 
@@ -227,7 +280,7 @@
     async Task EditBill(Bill b)
     {
         currentBill = b; isEditMode = true;
-        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0); // Keep Scroll logic, it's UI utility not alert
     }
     void CancelEdit() { currentBill = new Bill { DueDate = DateTime.Now }; isEditMode = false; }
 
@@ -238,28 +291,49 @@
         await Firebase.Save(myData); CancelEdit();
     }
 
-    async Task DeleteBill(Bill b) { if (await JS.InvokeAsync<bool>("confirm", "Delete?")) { myData.Bills.Remove(b); await Firebase.Save(myData); } }
-
-    async Task ResetMonthlyBills()
+    // 🔥 Delete Logic replaced with Modal
+    void ConfirmDeleteBill(Bill b)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "Start new month? Mark recurring bills as unpaid?"))
+        billToDelete = b;
+        isDeleteBillConfirmVisible = true;
+    }
+    async Task ExecuteDeleteBill()
+    {
+        if (billToDelete != null)
         {
-            foreach (var b in myData.Bills.Where(x => x.IsRecurring)) { b.IsPaid = false; b.PaymentDate = null; }
+            myData.Bills.Remove(billToDelete);
             await Firebase.Save(myData);
+            isDeleteBillConfirmVisible = false;
         }
+    }
+
+    // 🔥 Reset Logic replaced with Modal
+    async Task ExecuteResetMonthly()
+    {
+        foreach (var b in myData.Bills.Where(x => x.IsRecurring)) { b.IsPaid = false; b.PaymentDate = null; }
+        await Firebase.Save(myData);
+        isResetConfirmVisible = false;
     }
 
     async Task AddCategory() { if (!string.IsNullOrEmpty(newCatName)) { myData.BillCategories.Add(newCatName); await Firebase.Save(myData); newCatName = ""; } }
     async Task DeleteCategory(string c) { myData.BillCategories.Remove(c); await Firebase.Save(myData); }
 
     void InitiatePayBill(Bill b) { if (!myData.Accounts.Any()) return; selectedBillToPay = b; payFromAccountId = myData.Accounts.First().Id; isPayModalVisible = true; }
+
     async Task ConfirmPayBill()
     {
         if (selectedBillToPay == null) return;
         var acc = myData.Accounts.FirstOrDefault(x => x.Id == payFromAccountId);
         if (acc != null)
         {
-            if (acc.Balance < selectedBillToPay.Amount) { await JS.InvokeVoidAsync("alert", "Insufficient balance!"); return; }
+            if (acc.Balance < selectedBillToPay.Amount)
+            {
+                // 🔥 Replaced Alert with Custom Modal
+                messageTitle = "Error";
+                messageBody = "Insufficient balance!";
+                isMessageVisible = true;
+                return;
+            }
             acc.Balance -= selectedBillToPay.Amount;
             myData.History.Add(new Transaction { Desc = $"Paid: {selectedBillToPay.Name}", Category = "Bills", Amount = selectedBillToPay.Amount, AmountDisplay = $"-{selectedBillToPay.Amount:N2}", ColorHex = "#e74c3c", Date = DateTime.Now });
             selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;

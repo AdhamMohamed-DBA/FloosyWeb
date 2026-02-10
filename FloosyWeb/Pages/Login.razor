@@ -15,7 +15,13 @@
     {
         <h3 style="color:white; margin-bottom:20px;">Welcome Back!</h3>
         <input @bind="email" placeholder="Email" class="input-dark" />
-        <input @bind="password" type="password" placeholder="Password" class="input-dark" />
+
+        <div class="password-wrapper">
+            <input @bind="password" type="@passwordType" placeholder="Password" class="input-dark" />
+            <span class="toggle-icon" @onclick="TogglePassword">
+                @(showPassword ? "🙈" : "👁️")
+            </span>
+        </div>
 
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; color:#ccc; cursor:pointer;" @onclick="() => rememberMe = !rememberMe">
             <input type="checkbox" @bind="rememberMe" style="width:20px; height:20px; cursor:pointer; accent-color:#00E676;" />
@@ -29,16 +35,23 @@
             <button class="btn-link" @onclick="() => mode = 2">Forgot Password?</button>
         </div>
     }
-    else if (mode == 1) // REGISTER
+    else if (mode == 1)
     {
         <h3 style="color:white; margin-bottom:20px;">New Account</h3>
         <input @bind="newName" placeholder="Full Name" class="input-dark" />
         <input @bind="email" placeholder="Email" class="input-dark" />
-        <input @bind="password" type="password" placeholder="Password" class="input-dark" />
+
+        <div class="password-wrapper">
+            <input @bind="password" type="@passwordType" placeholder="Password" class="input-dark" />
+            <span class="toggle-icon" @onclick="TogglePassword">
+                @(showPassword ? "🙈" : "👁️")
+            </span>
+        </div>
+
         <button class="btn-primary" @onclick="DoRegister">Sign Up</button>
         <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">Back to Login</button>
     }
-    else if (mode == 2) // RESET
+    else if (mode == 2)
     {
         <h3 style="color:white; margin-bottom:20px;">Reset Password</h3>
         <input @bind="email" placeholder="Email" class="input-dark" />
@@ -46,6 +59,17 @@
         <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">Back to Login</button>
     }
 </div>
+
+@if (isMessageVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="text-align:center;">
+            <h3 style="margin-top:0; color:@(messageType == "Success" ? "#00E676" : "#e74c3c");">@messageTitle</h3>
+            <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
+            <button class="btn-primary" style="padding:10px;" @onclick="() => isMessageVisible = false">OK</button>
+        </div>
+    </div>
+}
 
 <style>
     .login-container {
@@ -58,23 +82,49 @@
         margin: 0 auto;
     }
 
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .toggle-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        user-select: none;
+        z-index: 10;
+    }
+
     .input-dark {
         width: 100%;
         background: #333;
         color: white;
         border: 1px solid #444;
         padding: 15px;
+        padding-right: 45px;
         border-radius: 12px;
-        margin-bottom: 15px;
         font-size: 16px;
         outline: none;
         transition: 0.3s;
         box-sizing: border-box;
+        margin-bottom: 0;
     }
 
         .input-dark:focus {
             border-color: #00E676;
         }
+
+    input.input-dark:not([type="password"]):not([type="text"]) {
+        margin-bottom: 15px;
+    }
+
+    .login-container > .input-dark {
+        margin-bottom: 15px;
+    }
 
     .btn-primary {
         width: 100%;
@@ -97,23 +147,59 @@
         font-size: 14px;
         text-decoration: underline;
     }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 300px;
+        background: #1f1f1f;
+        padding: 25px 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
 </style>
 
 @code {
     int mode = 0;
     string email = "", password = "", newName = "";
     bool rememberMe = false;
+    bool showPassword = false;
+    string passwordType = "password"; // 🔥 FIX: Variable for input type
 
-    // 🔥 Added Check for Saved User
+    bool isMessageVisible = false;
+    string messageTitle = "", messageBody = "", messageType = "Error";
+
+    void ShowMessage(string title, string body, string type = "Error")
+    {
+        messageTitle = title; messageBody = body; messageType = type; isMessageVisible = true;
+    }
+
+    void TogglePassword()
+    {
+        showPassword = !showPassword;
+        passwordType = showPassword ? "text" : "password";
+    }
+
     protected override void OnInitialized()
     {
         var savedEmail = LocalStorage.GetItem<string>("SavedEmail");
         var savedPass = LocalStorage.GetItem<string>("SavedPass");
         if (!string.IsNullOrEmpty(savedEmail) && !string.IsNullOrEmpty(savedPass))
         {
-            email = savedEmail;
-            password = savedPass;
-            rememberMe = true;
+            email = savedEmail; password = savedPass; rememberMe = true;
         }
     }
 
@@ -127,22 +213,22 @@
             else { LocalStorage.RemoveItem("SavedEmail"); LocalStorage.RemoveItem("SavedPass"); }
             Nav.NavigateTo("home");
         }
-        else await JS.InvokeVoidAsync("alert", res);
+        else ShowMessage("Login Failed", res, "Error");
     }
 
     async Task DoRegister()
     {
-        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(newName)) return;
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(newName)) { ShowMessage("Missing Info", "Please fill in all fields.", "Error"); return; }
         var res = await Firebase.Register(newName, email, password);
         if (res == "Success") Nav.NavigateTo("home");
-        else await JS.InvokeVoidAsync("alert", res);
+        else ShowMessage("Registration Failed", res, "Error");
     }
 
     async Task DoReset()
     {
-        if (string.IsNullOrEmpty(email)) return;
+        if (string.IsNullOrEmpty(email)) { ShowMessage("Missing Email", "Enter email first.", "Error"); return; }
         var res = await Firebase.ResetPassword(email);
-        await JS.InvokeVoidAsync("alert", res == "Success" ? "Check your email!" : res);
-        if (res == "Success") mode = 0;
+        if (res == "Success") { ShowMessage("Email Sent", "Check your inbox!", "Success"); mode = 0; }
+        else ShowMessage("Error", res, "Error");
     }
 }

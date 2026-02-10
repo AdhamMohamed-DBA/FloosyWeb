@@ -12,7 +12,6 @@ public class AppData
     public ObservableCollection<string> ExpenseCategories { get; set; } = [];
     public ObservableCollection<string> BillCategories { get; set; } = [];
 
-    // 🔥 NEW: Bedayet el-shahr el-maly (Default 1)
     public int FinancialStartDay { get; set; } = 1;
 }
 
