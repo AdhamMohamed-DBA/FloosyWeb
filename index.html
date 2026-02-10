@@ -11,13 +11,15 @@
         document.write('<base href="' + path + '" />');
     </script>
 
+    <link href="manifest.webmanifest" rel="manifest" />
+    <meta name="theme-color" content="#1f1f1f" />
+
     <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
     <link href="FloosyWeb.styles.css" rel="stylesheet" />
 
     <link rel="icon" type="image/png" href="images/appicon.png" />
     <link rel="apple-touch-icon" href="images/appicon.png" />
-    <link href="manifest.webmanifest" rel="manifest" />
 
     <style>
         body {
@@ -67,14 +69,9 @@
             <h5>Loading Floosy...</h5>
         </div>
     </div>
-
     <script src="_framework/blazor.webassembly.js"></script>
-
     <script>
-        window.scrollToTop = () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+        window.scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
     </script>
 </body>
-
 </html>
