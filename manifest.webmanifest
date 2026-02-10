@@ -21,9 +21,9 @@
       "purpose": "any"
     },
     {
-      "src": "images/appicon.png",
+      "src": "images/appicon_maskable.png",
       "type": "image/png",
-      "sizes": "512x512",
+      "sizes": "410x410",
       "purpose": "maskable"
     }
   ]
