@@ -252,6 +252,8 @@
 
     IEnumerable<PersonTransaction> RecentPeopleMoves =>
         (myData.PeopleHistory ?? Enumerable.Empty<PersonTransaction>())
+            // Show only real movements that touched accounts (have linked History transaction)
+            .Where(m => !string.IsNullOrEmpty(m.TransactionId))
             .OrderByDescending(m => m.Date)
             .Take(10);
 
