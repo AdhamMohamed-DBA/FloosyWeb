@@ -31,6 +31,13 @@
 
         <button class="btn-primary" @onclick="DoLogin">Login</button>
 
+        @if (canUseBiometric)
+        {
+            <button class="btn-primary" style="margin-top:10px; background:#333; color:white; box-shadow:none;" @onclick="LoginWithBiometric">
+                Login with Biometric
+            </button>
+        }
+
         <div style="display:flex; justify-content:space-between; margin-top:15px;">
             <button class="btn-link" @onclick="() => mode = 1">Create Account</button>
             <button class="btn-link" @onclick="() => mode = 2">Forgot Password?</button>
@@ -189,6 +196,8 @@
     bool isMessageVisible = false;
     string messageTitle = "", messageBody = "", messageType = "Error";
 
+    bool canUseBiometric = false;
+
     void ShowMessage(string title, string body, string type = "Error")
     {
         messageTitle = title; messageBody = body; messageType = type; isMessageVisible = true;
@@ -200,7 +209,7 @@
         passwordType = showPassword ? "text" : "password";
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // 🔒 SECURITY FIX: Only load saved email, NOT password
         var savedEmail = LocalStorage.GetItem<string>("SavedEmail");
@@ -216,6 +225,16 @@
             LocalStorage.RemoveItem("SavedPass");
         }
         catch { }
+
+        // Check if this device even supports biometrics (WebAuthn)
+        try
+        {
+            canUseBiometric = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
+        }
+        catch
+        {
+            canUseBiometric = false;
+        }
     }
 
     async Task DoLogin()
@@ -316,6 +335,47 @@
             return false;
 
         return true;
+    }
+
+    async Task LoginWithBiometric()
+    {
+        try
+        {
+            var supported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
+            if (!supported)
+            {
+                ShowMessage("Not Supported", "Biometric login is not available on this device.", "Error");
+                return;
+            }
+
+            var enabled = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
+            if (!enabled)
+            {
+                ShowMessage("Not Enabled", "Go to Settings → Security and enable biometric unlock on this device first.", "Error");
+                return;
+            }
+
+            var ok = await JS.InvokeAsync<bool>("floosyBiometric.verify");
+            if (!ok)
+            {
+                ShowMessage("Cancelled", "Biometric login was cancelled or failed.", "Error");
+                return;
+            }
+
+            // Restore current user info from local storage
+            Firebase.InitUser();
+            if (string.IsNullOrEmpty(Firebase.CurrentUserId))
+            {
+                ShowMessage("Login Required", "Please login once with email & password before using biometric login.", "Error");
+                return;
+            }
+
+            Nav.NavigateTo("home");
+        }
+        catch
+        {
+            ShowMessage("Error", "Biometric login is not available right now.", "Error");
+        }
     }
 
     async Task DoReset()

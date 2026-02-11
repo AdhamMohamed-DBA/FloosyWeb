@@ -354,8 +354,9 @@
         }
     }
 
-    void SignOut()
+    async void SignOut()
     {
+        try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
         Firebase.SignOut();
         Nav.NavigateTo("", forceLoad: true);
     }
