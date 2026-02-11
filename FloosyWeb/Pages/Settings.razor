@@ -1,4 +1,4 @@
-﻿@page "/settings"
+@page "/settings"
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
@@ -24,6 +24,19 @@
 
         <label style="font-size:11px; color:#e74c3c;">Danger Zone</label>
         <button class="btn-logout" @onclick="() => isDeleteConfirmVisible = true">🗑️ Delete Account</button>
+    </div>
+
+    <div class="setting-card">
+        <label>Security</label>
+        <div class="input-stack">
+            <div style="display:flex; align-items:center; gap:10px; white-space:nowrap;">
+                <span>Biometric unlock (this device)</span>
+                <input type="checkbox" checked="@useBiometric" @onchange="ToggleBiometric" />
+            </div>
+            <p style="color:gray; font-size:10px; margin-top:5px;">
+                Uses Face ID / fingerprint when supported. On devices without biometrics, login stays password-only.
+            </p>
+        </div>
     </div>
 
     <div class="setting-card">
@@ -201,6 +214,8 @@
     bool isMessageVisible = false;
     string messageTitle = "", messageBody = "", messageType = "Info";
 
+    bool useBiometric = false;
+
     void ShowMessage(string title, string body, string type = "Info")
     {
         messageTitle = title; messageBody = body; messageType = type; isMessageVisible = true;
@@ -214,6 +229,15 @@
 
         newName = Firebase.GetUserName();
         userEmail = Firebase.UserEmail ?? "No Email";
+
+        try
+        {
+            useBiometric = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
+        }
+        catch
+        {
+            useBiometric = false;
+        }
     }
 
     async Task UpdateFinancialDay()
@@ -290,6 +314,43 @@
         {
             ShowMessage("Error", res, "Error");
             isDeleteConfirmVisible = false;
+        }
+    }
+
+    async Task ToggleBiometric(ChangeEventArgs e)
+    {
+        var target = e.Value is bool b && b;
+
+        if (target)
+        {
+            bool supported = false;
+            try
+            {
+                supported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
+            }
+            catch { supported = false; }
+
+            if (!supported)
+            {
+                ShowMessage("Not Supported", "Biometric unlock is not available on this device.", "Error");
+                useBiometric = false;
+                return;
+            }
+
+            var ok = await JS.InvokeAsync<bool>("floosyBiometric.register");
+            if (!ok)
+            {
+                ShowMessage("Failed", "Could not enable biometric unlock on this device.", "Error");
+                useBiometric = false;
+                return;
+            }
+
+            useBiometric = true;
+        }
+        else
+        {
+            try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
+            useBiometric = false;
         }
     }
 

@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -240,6 +240,23 @@
                 LocalStorage.RemoveItem("SavedEmail");
             }
 
+            // Optional biometric unlock on supported devices
+            try
+            {
+                var bioEnabled = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
+                var bioSupported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
+                if (bioEnabled && bioSupported)
+                {
+                    var ok = await JS.InvokeAsync<bool>("floosyBiometric.verify");
+                    if (!ok)
+                    {
+                        // Soft failure: allow login but notify user
+                        ShowMessage("Biometric skipped", "Biometric unlock failed or was cancelled. Continuing with password login.", "Info");
+                    }
+                }
+            }
+            catch { }
+
             Nav.NavigateTo("home");
         }
         else
@@ -253,6 +270,12 @@
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(newName))
         {
             ShowMessage("Missing Info", "Please fill in all fields.", "Error");
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            ShowMessage("Invalid Email", "Please enter a valid email like name@gmail.com or name@outlook.com.", "Error");
             return;
         }
 
@@ -271,6 +294,28 @@
         {
             ShowMessage("Registration Failed", res, "Error");
         }
+    }
+
+    bool IsValidEmail(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+
+        var atIndex = value.IndexOf('@');
+        if (atIndex <= 0 || atIndex != value.LastIndexOf('@')) return false;
+
+        var localPart = value[..atIndex];
+        var domainPart = value[(atIndex + 1)..];
+
+        if (localPart.Length < 2 || domainPart.Length < 3) return false;
+        if (!domainPart.Contains('.')) return false;
+
+        var lower = value.ToLowerInvariant();
+
+        // Allow any real-looking domain, but block very obvious test values
+        if (lower == "test@test" || lower.StartsWith("test@") || lower.EndsWith("@test.com"))
+            return false;
+
+        return true;
     }
 
     async Task DoReset()
