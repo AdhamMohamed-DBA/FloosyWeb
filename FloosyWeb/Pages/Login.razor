@@ -259,12 +259,13 @@
                 LocalStorage.RemoveItem("SavedEmail");
             }
 
-            // Optional biometric unlock on supported devices
+            // Optional biometric unlock on supported devices:
+            // Always store latest credentials locally (if supported),
+            // so biometric login can re-use them later.
             try
             {
-                var bioEnabled = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
                 var bioSupported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
-                if (bioEnabled && bioSupported)
+                if (bioSupported)
                 {
                     // Store credentials for future biometric login (option 1 trade-off)
                     await JS.InvokeVoidAsync("floosyBiometric.setCredentials", email, password);
