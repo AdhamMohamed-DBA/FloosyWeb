@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace FloosyWeb.Models;
 
@@ -7,6 +7,10 @@ public class AppData
     public ObservableCollection<Account> Accounts { get; set; } = [];
     public ObservableCollection<Bill> Bills { get; set; } = [];
     public ObservableCollection<Transaction> History { get; set; } = [];
+
+    // People balances (who owes you / who you owe)
+    public ObservableCollection<Person> People { get; set; } = [];
+    public ObservableCollection<PersonTransaction> PeopleHistory { get; set; } = [];
 
     public ObservableCollection<string> IncomeCategories { get; set; } = [];
     public ObservableCollection<string> ExpenseCategories { get; set; } = [];
@@ -50,6 +54,41 @@ public class Transaction
     public string? AmountDisplay { get; set; }
     public string? ColorHex { get; set; }
     public DateTime Date { get; set; } = DateTime.Now;
+}
+
+public class Person
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = "";
+
+    /// <summary>
+    /// Net balance with this person:
+    ///  - Positive  => they owe you money (فلوس ليك).
+    ///  - Negative  => you owe them money (فلوس عليك).
+    /// </summary>
+    public decimal Balance { get; set; }
+}
+
+public class PersonTransaction
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string PersonId { get; set; } = "";
+    public string PersonName { get; set; } = "";
+    public decimal Amount { get; set; }
+
+    /// <summary>
+    /// true  => money coming from the person to you (collect).
+    /// false => money going from you to the person (pay).
+    /// </summary>
+    public bool IsFromPerson { get; set; }
+
+    public string? Note { get; set; }
+    public DateTime Date { get; set; } = DateTime.Now;
+
+    /// <summary>
+    /// Optional link to the main Transaction entry in History.
+    /// </summary>
+    public string? TransactionId { get; set; }
 }
 
 public class ChartItem

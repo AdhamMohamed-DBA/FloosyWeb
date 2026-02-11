@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @inject NavigationManager Nav
 @inject FirebaseService Firebase
 
@@ -22,6 +22,10 @@
         <a class="nav-item @(IsActive("charts") ? "active" : "")" @onclick='() => Nav.NavigateTo("charts")'>
             <img src="images/chart.png" class="nav-icon" />
             <span>Charts</span>
+        </a>
+        <a class="nav-item @(IsActive("debts") ? "active" : "")" @onclick='() => Nav.NavigateTo("debts")'>
+            <img src="images/bill.png" class="nav-icon" />
+            <span>Debts</span>
         </a>
         <a class="nav-item @(IsActive("history") ? "active" : "")" @onclick='() => Nav.NavigateTo("history")'>
             <img src="images/history.png" class="nav-icon" />

@@ -1,0 +1,687 @@
+@page "/debts"
+@using FloosyWeb.Models
+@inject FirebaseService Firebase
+
+<div style="padding:20px; padding-bottom:80px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <h3 style="margin:0;">Debts 💵</h3>
+        </div>
+        <button class="btn-primary" style="padding:6px 14px; font-size:13px; border-radius:999px; width:auto;" @onclick="ShowAddPerson">
+            + Add Contact
+        </button>
+    </div>
+
+    @if (!PeopleList.Any())
+    {
+        <div style="text-align:center; padding:30px; color:gray; font-size:13px;">
+            <p>No contacts with debts yet.</p>
+            <p>Use "Add Contact" to start tracking who owes you or who you owe.</p>
+        </div>
+    }
+    else
+    {
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            @foreach (var p in PeopleList)
+            {
+                var color = GetPersonColor(p);
+                <div style="background:#1f1f1f; padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-left:4px solid @color;"
+                     @onclick="@(() => OpenPerson(p))">
+                    <div>
+                        <div style="font-weight:bold; color:white; font-size:1.05em;">@p.Name</div>
+                        <div style="color:gray; font-size:11px;">@GetPersonSubtitle(p)</div>
+                    </div>
+                    <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                        <div style="font-weight:bold; font-size:1.1em; color:@color;">
+                            @GetPersonBalanceDisplay(p)
+                        </div>
+                        <button class="btn-trans" style="padding:0; font-size:13px; color:#e74c3c;"
+                                @onclick="() => AskDeletePerson(p)"
+                                @onclick:stopPropagation="true">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (RecentPeopleMoves.Any())
+    {
+        <div style="margin-top:30px;">
+            <h4 style="margin:0 0 10px 0;">Recent Activity</h4>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                @foreach (var m in RecentPeopleMoves)
+                {
+                    var color = m.IsFromPerson ? "#2ecc71" : "#e74c3c";
+                    <div style="background:#1b1b1b; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border-left:3px solid @color;">
+                        <div style="font-size:11px;">
+                            <div style="color:white; font-weight:bold;">@m.PersonName</div>
+                            <div style="color:gray;">
+                                @(m.IsFromPerson ? "They paid you" : "You paid them")
+                            </div>
+                            <div style="color:gray;">@m.Date.ToString("dd/MM/yyyy")</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:@color; font-weight:bold;">
+                                @(m.IsFromPerson ? "+" : "-")@m.Amount.ToString("N2")
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
+                                <button class="btn-trans" style="padding:0; font-size:14px;" @onclick="() => EditMove(m)">✏️</button>
+                                <button class="btn-trans" style="padding:0; font-size:14px;" @onclick="() => ConfirmDeleteMove(m)">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@* Add / Edit Person *@
+@if (isPersonModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>@(editingPerson != null ? "Edit Contact" : "Add Contact")</h3>
+            <input @bind="personNameInput" class="input-dark" placeholder="Contact Name" />
+
+            @if (editingPerson == null)
+            {
+                <label style="color:gray; font-size:12px; margin-top:4px;">Initial debt (optional)</label>
+                <input type="number" @bind="initialAmount" class="input-dark" placeholder="Amount" />
+
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <button class="btn-primary"
+                            style="flex:1; background:@(initialTheyOweMe ? "#2ecc71" : "#333"); color:white;"
+                            @onclick="() => initialTheyOweMe = true">
+                        They owe me
+                    </button>
+                    <button class="btn-primary"
+                            style="flex:1; background:@(!initialTheyOweMe ? "#e74c3c" : "#333"); color:white;"
+                            @onclick="() => initialTheyOweMe = false">
+                        I owe them
+                    </button>
+                </div>
+
+                <label style="color:gray; font-size:12px;">Date</label>
+                <input type="date" @bind="initialDate" class="input-dark" />
+
+                <input @bind="initialNote" class="input-dark" placeholder="Description (optional)" />
+            }
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SavePerson">Save</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isPersonModalVisible = false">Cancel</button>
+            </div>
+
+            @if (editingPerson != null)
+            {
+                <button class="btn-trans" style="margin-top:10px; color:#e74c3c;" @onclick="ConfirmDeletePerson">
+                    Delete Contact
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@* Person actions (in / out) *@
+@if (isMoveModalVisible && selectedPerson != null)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>@selectedPerson.Name</h3>
+
+            <p style="color:gray; font-size:12px; margin-top:0;">
+                Current: <b style="color:@GetPersonColor(selectedPerson)">@GetPersonBalanceDisplay(selectedPerson)</b>
+            </p>
+
+            <label style="color:gray; font-size:12px;">Direction</label>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <button class="btn-primary" style="flex:1; background:@(isFromPerson ? "#2ecc71" : "#333"); color:white;"
+                        @onclick="@(() => isFromPerson = true)">
+                    They pay you
+                </button>
+                <button class="btn-primary" style="flex:1; background:@(!isFromPerson ? "#e74c3c" : "#333"); color:white;"
+                        @onclick="@(() => isFromPerson = false)">
+                    You pay them
+                </button>
+            </div>
+
+            <label style="color:gray; font-size:12px;">Date</label>
+            <input type="date" @bind="moveDate" class="input-dark" />
+
+            <label style="color:gray; font-size:12px;">Account</label>
+            <select @bind="selectedAccountId" class="input-dark">
+                @foreach (var a in myData.Accounts)
+                {
+                    <option value="@a.Id">@a.Name</option>
+                }
+            </select>
+
+            <input type="number" @bind="moveAmount" class="input-dark" placeholder="Amount" />
+            <input @bind="moveNote" class="input-dark" placeholder="Note (Optional)" />
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveMove">Save</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isMoveModalVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Delete person confirm *@
+@if (isDeletePersonConfirmVisible && editingPerson != null)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="border:1px solid #e74c3c;">
+            <h3 style="color:#e74c3c;">Delete Person?</h3>
+            <p style="color:#ccc; font-size:13px;">
+                Are you sure you want to delete <b>@editingPerson.Name</b>?<br />
+                Current balance: <b style="color:@GetPersonColor(editingPerson)">@GetPersonBalanceDisplay(editingPerson)</b>
+            </p>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="DeletePerson">Delete</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeletePersonConfirmVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 350px;
+        background: #1f1f1f;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    .input-dark {
+        width: 100%;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+    }
+
+    .btn-primary {
+        background-color: #00E676;
+        color: black;
+        border: none;
+        padding: 10px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-trans {
+        background: transparent;
+        color: gray;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    AppData myData = new();
+
+    // Person lists
+    IEnumerable<Person> PeopleList =>
+        myData.People?.OrderBy(p => p.Name) ?? Enumerable.Empty<Person>();
+
+    IEnumerable<PersonTransaction> RecentPeopleMoves =>
+        (myData.PeopleHistory ?? Enumerable.Empty<PersonTransaction>())
+            .OrderByDescending(m => m.Date)
+            .Take(10);
+
+    // UI state
+    bool isPersonModalVisible = false;
+    bool isMoveModalVisible = false;
+    bool isDeletePersonConfirmVisible = false;
+
+    // Edit/delete specific debt moves
+    bool isEditMoveVisible = false;
+    bool isDeleteMoveVisible = false;
+
+    Person? selectedPerson;
+    Person? editingPerson;
+    PersonTransaction? selectedMove;
+
+    // Add/Edit person
+    string personNameInput = "";
+
+    // Initial debt when creating a new contact (does NOT touch accounts)
+    decimal initialAmount;
+    bool initialTheyOweMe = true; // true = they owe me, false = I owe them
+    DateTime initialDate = DateTime.Now;
+    string initialNote = "";
+
+    // Move state (later payments/collections)
+    bool isFromPerson = true;
+    string selectedAccountId = "";
+    decimal moveAmount;
+    string moveNote = "";
+    DateTime moveDate = DateTime.Now;
+
+    // Edit / delete move vars
+    decimal editMoveAmount;
+    decimal oldMoveAmount;
+    string editMoveAccountId = "";
+    string deleteRefundAccountId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        myData = await Firebase.Load();
+
+        // Ensure collections are not null when loading old data
+        myData.People ??= new System.Collections.ObjectModel.ObservableCollection<Person>();
+        myData.PeopleHistory ??= new System.Collections.ObjectModel.ObservableCollection<PersonTransaction>();
+
+        if (myData.Accounts.Any())
+        {
+            var firstAcc = myData.Accounts.First();
+            selectedAccountId = firstAcc.Id;
+        }
+    }
+
+    void ShowAddPerson()
+    {
+        editingPerson = null;
+        personNameInput = "";
+        initialAmount = 0;
+        initialTheyOweMe = true;
+        initialDate = DateTime.Now;
+        initialNote = "";
+
+        isPersonModalVisible = true;
+    }
+
+    void OpenPerson(Person p)
+    {
+        selectedPerson = p;
+        isFromPerson = true;
+        moveAmount = 0;
+        moveNote = "";
+        moveDate = DateTime.Now;
+
+        if (myData.Accounts.Any())
+        {
+            selectedAccountId = myData.Accounts.First().Id;
+        }
+
+        isMoveModalVisible = true;
+    }
+
+    void ConfirmDeletePerson()
+    {
+        isDeletePersonConfirmVisible = true;
+    }
+
+    async Task SavePerson()
+    {
+        if (string.IsNullOrWhiteSpace(personNameInput))
+            return;
+
+        if (editingPerson == null)
+        {
+            var p = new Person { Name = personNameInput };
+            myData.People.Add(p);
+
+            // Optional initial debt on create (only affects remaining debt + people history)
+            if (initialAmount > 0)
+            {
+                var amount = initialAmount;
+
+                if (initialTheyOweMe)
+                {
+                    // You are owed this amount (remaining starts here)
+                    p.Balance = amount;
+
+                    myData.PeopleHistory.Add(new PersonTransaction
+                    {
+                        PersonId = p.Id,
+                        PersonName = p.Name,
+                        Amount = amount,
+                        IsFromPerson = false, // original direction does not affect remaining logic
+                        Note = initialNote,
+                        Date = initialDate
+                    });
+                }
+                else
+                {
+                    // You owe them this amount (remaining you must pay)
+                    p.Balance = amount;
+
+                    myData.PeopleHistory.Add(new PersonTransaction
+                    {
+                        PersonId = p.Id,
+                        PersonName = p.Name,
+                        Amount = amount,
+                        IsFromPerson = true,
+                        Note = initialNote,
+                        Date = initialDate
+                    });
+                }
+            }
+        }
+        else
+        {
+            editingPerson.Name = personNameInput;
+        }
+
+        await Firebase.Save(myData);
+        isPersonModalVisible = false;
+    }
+
+    async Task DeletePerson()
+    {
+        if (editingPerson == null)
+            return;
+
+        myData.People.Remove(editingPerson);
+
+        // Optional: keep history, just detach; or filter it out
+        var toRemove = myData.PeopleHistory.Where(m => m.PersonId == editingPerson.Id).ToList();
+        foreach (var m in toRemove)
+        {
+            myData.PeopleHistory.Remove(m);
+        }
+
+        await Firebase.Save(myData);
+        isDeletePersonConfirmVisible = false;
+        isPersonModalVisible = false;
+    }
+
+    void AskDeletePerson(Person p)
+    {
+        editingPerson = p;
+        isDeletePersonConfirmVisible = true;
+    }
+
+    void EditMove(PersonTransaction m)
+    {
+        selectedMove = m;
+        oldMoveAmount = m.Amount;
+        editMoveAmount = m.Amount;
+        editMoveAccountId = "";
+        isEditMoveVisible = true;
+    }
+
+    void ConfirmDeleteMove(PersonTransaction m)
+    {
+        selectedMove = m;
+        deleteRefundAccountId = "";
+        isDeleteMoveVisible = true;
+    }
+
+    async Task SaveEditMove()
+    {
+        if (selectedMove == null)
+            return;
+        if (editMoveAmount <= 0)
+            return;
+
+        var person = myData.People.FirstOrDefault(p => p.Id == selectedMove.PersonId);
+
+        if (person != null)
+        {
+            // Revert old effect on remaining debt, then apply new
+            person.Balance += oldMoveAmount;
+            person.Balance -= editMoveAmount;
+        }
+
+        if (!string.IsNullOrEmpty(editMoveAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(a => a.Id == editMoveAccountId);
+            if (acc != null)
+            {
+                // Revert + apply on chosen account
+                if (selectedMove.IsFromPerson)
+                {
+                    // they paid you: original acc.Balance += old
+                    acc.Balance -= oldMoveAmount;
+                    acc.Balance += editMoveAmount;
+                }
+                else
+                {
+                    // you paid them: original acc.Balance -= old
+                    acc.Balance += oldMoveAmount;
+                    acc.Balance -= editMoveAmount;
+                }
+            }
+        }
+
+        // Update linked history transaction if available
+        if (!string.IsNullOrEmpty(selectedMove.TransactionId))
+        {
+            var t = myData.History.FirstOrDefault(x => x.Id == selectedMove.TransactionId);
+            if (t != null)
+            {
+                t.Amount = editMoveAmount;
+                t.AmountDisplay = (selectedMove.IsFromPerson ? "+" : "-") + editMoveAmount.ToString("N2");
+            }
+        }
+
+        // Update move amount
+        selectedMove.Amount = editMoveAmount;
+
+        await Firebase.Save(myData);
+        isEditMoveVisible = false;
+    }
+
+    async Task ExecuteDeleteMove()
+    {
+        if (selectedMove == null)
+            return;
+
+        var person = myData.People.FirstOrDefault(p => p.Id == selectedMove.PersonId);
+        if (person != null)
+        {
+            // Revert effect on remaining debt (add back amount)
+            person.Balance += selectedMove.Amount;
+        }
+
+        if (!string.IsNullOrEmpty(deleteRefundAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(a => a.Id == deleteRefundAccountId);
+            if (acc != null)
+            {
+                if (selectedMove.IsFromPerson)
+                {
+                    // they paid you: original acc.Balance += amount -> revert
+                    acc.Balance -= selectedMove.Amount;
+                }
+                else
+                {
+                    // you paid them: original acc.Balance -= amount -> revert
+                    acc.Balance += selectedMove.Amount;
+                }
+            }
+        }
+
+        // Remove linked history transaction if exists
+        if (!string.IsNullOrEmpty(selectedMove.TransactionId))
+        {
+            var t = myData.History.FirstOrDefault(x => x.Id == selectedMove.TransactionId);
+            if (t != null)
+            {
+                myData.History.Remove(t);
+            }
+        }
+
+        myData.PeopleHistory.Remove(selectedMove);
+
+        await Firebase.Save(myData);
+        isDeleteMoveVisible = false;
+    }
+
+    async Task SaveMove()
+    {
+        if (selectedPerson == null)
+            return;
+        if (moveAmount <= 0)
+            return;
+
+        var acc = myData.Accounts.FirstOrDefault(a => a.Id == selectedAccountId);
+        if (acc == null)
+            return;
+
+        var amount = moveAmount;
+
+        // Always reduce remaining debt (from 5500 -> 3500, etc.)
+        selectedPerson.Balance -= amount;
+
+        Transaction t;
+
+        if (isFromPerson)
+        {
+            // Money from person -> your account (they pay you)
+            acc.Balance += amount;
+
+            t = new Transaction
+            {
+                Desc = string.IsNullOrEmpty(moveNote)
+                    ? $"From {selectedPerson.Name}"
+                    : $"From {selectedPerson.Name} - {moveNote}",
+                Category = "Debts",
+                Amount = amount,
+                AmountDisplay = $"+{amount:N2}",
+                ColorHex = "#2ecc71",
+                Date = moveDate
+            };
+        }
+        else
+        {
+            // Money from your account -> person (you pay them)
+            acc.Balance -= amount;
+
+            t = new Transaction
+            {
+                Desc = string.IsNullOrEmpty(moveNote)
+                    ? $"To {selectedPerson.Name}"
+                    : $"To {selectedPerson.Name} - {moveNote}",
+                Category = "Debts",
+                Amount = amount,
+                AmountDisplay = $"-{amount:N2}",
+                ColorHex = "#e74c3c",
+                Date = moveDate
+            };
+        }
+
+        myData.History.Add(t);
+
+        myData.PeopleHistory.Add(new PersonTransaction
+        {
+            PersonId = selectedPerson.Id,
+            PersonName = selectedPerson.Name,
+            Amount = amount,
+            IsFromPerson = isFromPerson,
+            Note = moveNote,
+            Date = moveDate,
+            TransactionId = t.Id
+        });
+
+        await Firebase.Save(myData);
+        isMoveModalVisible = false;
+    }
+
+    string GetPersonBalanceDisplay(Person p)
+    {
+        if (p.Balance > 0) return $"{p.Balance:N2} remaining";
+        if (p.Balance < 0) return $"{Math.Abs(p.Balance):N2} overpaid";
+        return "0.00 (settled)";
+    }
+
+    string GetPersonSubtitle(Person p)
+    {
+        if (p.Balance > 0) return "Debt remaining";
+        if (p.Balance < 0) return "Overpaid";
+        return "No balance";
+    }
+
+    string GetPersonColor(Person p)
+    {
+        if (p.Balance > 0) return "#e74c3c";   // still debt -> red
+        if (p.Balance < 0) return "#2ecc71";   // overpaid / credit -> green
+        return "gray";
+    }
+}
+
+@* Edit single debt move *@
+@if (isEditMoveVisible && selectedMove != null)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Edit Debt Move</h3>
+            <p style="color:gray; font-size:12px; margin-top:0;">
+                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? "They paid you" : "You paid them")
+            </p>
+
+            <input type="number" @bind="editMoveAmount" class="input-dark" placeholder="Amount" />
+            <input @bind="selectedMove.Note" class="input-dark" placeholder="Note (optional)" />
+
+            <label style="color:gray; font-size:12px;">Update account (optional)</label>
+            <select @bind="editMoveAccountId" class="input-dark">
+                <option value="">Don't change account</option>
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">@acc.Name</option>
+                }
+            </select>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveEditMove">Save</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isEditMoveVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Delete debt move with optional refund *@
+@if (isDeleteMoveVisible && selectedMove != null)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3 style="color:#e74c3c;">Delete Debt Move?</h3>
+            <p style="color:#ccc; font-size:13px;">
+                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? "They paid you" : "You paid them")
+            </p>
+
+            <label style="color:gray; font-size:12px;">Refund on account (optional)</label>
+            <select @bind="deleteRefundAccountId" class="input-dark">
+                <option value="">Just delete (no account change)</option>
+                @foreach (var acc in myData.Accounts)
+                {
+                    <option value="@acc.Id">@acc.Name</option>
+                }
+            </select>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteMove">Delete</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteMoveVisible = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
