@@ -91,20 +91,22 @@
     }
 
     .password-wrapper {
-        position: relative;
+        display: flex;
+        align-items: center;
         width: 100%;
         margin-bottom: 15px;
     }
 
+        .password-wrapper .input-dark {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
     .toggle-icon {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
+        margin-left: 8px;
         cursor: pointer;
         font-size: 18px;
         user-select: none;
-        z-index: 10;
     }
 
     .input-dark {
