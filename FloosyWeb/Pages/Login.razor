@@ -266,12 +266,8 @@
                 var bioSupported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
                 if (bioEnabled && bioSupported)
                 {
-                    var ok = await JS.InvokeAsync<bool>("floosyBiometric.verify");
-                    if (!ok)
-                    {
-                        // Soft failure: allow login but notify user
-                        ShowMessage("Biometric skipped", "Biometric unlock failed or was cancelled. Continuing with password login.", "Info");
-                    }
+                    // Store credentials for future biometric login (option 1 trade-off)
+                    await JS.InvokeVoidAsync("floosyBiometric.setCredentials", email, password);
                 }
             }
             catch { }
@@ -337,6 +333,12 @@
         return true;
     }
 
+    class BioCreds
+    {
+        public string e { get; set; } = "";
+        public string p { get; set; } = "";
+    }
+
     async Task LoginWithBiometric()
     {
         try
@@ -362,23 +364,27 @@
                 return;
             }
 
-            // Restore current user info from local storage
-            Firebase.InitUser();
-            if (string.IsNullOrEmpty(Firebase.CurrentUserId))
+            // Get saved credentials
+            var creds = await JS.InvokeAsync<BioCreds>("floosyBiometric.getCredentials");
+            if (creds == null || string.IsNullOrWhiteSpace(creds.e) || string.IsNullOrWhiteSpace(creds.p))
             {
-                ShowMessage("Login Required", "Please login once with email & password before using biometric login.", "Error");
+                ShowMessage("Login Required", "Please login once with email & password after enabling biometric, so we can store credentials for biometric login.", "Error");
                 return;
             }
 
-            // Make sure we can actually access user data (auth session valid)
-            try
+            // Perform real Firebase login using stored credentials
+            var res = await Firebase.Login(creds.e, creds.p);
+            if (res != "Success")
             {
-                await Firebase.Load();
-            }
-            catch
-            {
-                ShowMessage("Session Expired", "Please login once with email & password, then you can use biometric login.", "Error");
+                ShowMessage("Login Failed", "Stored credentials are no longer valid. Please login again with email & password.", "Error");
                 return;
+            }
+
+            // Update email field / remember-me behavior
+            email = creds.e;
+            if (rememberMe)
+            {
+                LocalStorage.SetItem("SavedEmail", email);
             }
 
             Nav.NavigateTo("home");

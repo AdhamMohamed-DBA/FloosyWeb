@@ -93,6 +93,33 @@ window.floosyBiometric = {
     disable: function () {
         if (!this.isSupported()) return;
         localStorage.removeItem("floosy_bio_cred");
+        localStorage.removeItem("floosy_bio_creds");
+    },
+
+    // Store email/password locally (lightly obfuscated, NOT real encryption).
+    setCredentials: function (email, password) {
+        if (!this.isSupported()) return;
+        try {
+            const payload = { e: email, p: password };
+            const encoded = btoa(JSON.stringify(payload));
+            localStorage.setItem("floosy_bio_creds", encoded);
+        } catch (e) {
+            console.error("setCredentials failed", e);
+        }
+    },
+
+    // Get stored credentials (or null if missing).
+    getCredentials: function () {
+        if (!this.isSupported()) return null;
+        const raw = localStorage.getItem("floosy_bio_creds");
+        if (!raw) return null;
+        try {
+            const json = atob(raw);
+            return JSON.parse(json);
+        } catch (e) {
+            console.error("getCredentials failed", e);
+            return null;
+        }
     }
 };
 
