@@ -370,6 +370,17 @@
                 return;
             }
 
+            // Make sure we can actually access user data (auth session valid)
+            try
+            {
+                await Firebase.Load();
+            }
+            catch
+            {
+                ShowMessage("Session Expired", "Please login once with email & password, then you can use biometric login.", "Error");
+                return;
+            }
+
             Nav.NavigateTo("home");
         }
         catch
