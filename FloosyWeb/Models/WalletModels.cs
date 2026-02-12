@@ -27,7 +27,12 @@ public class AppData
 
 public class UpdateBroadcast
 {
+    // News/update version used for one-time popup tracking
     public string Version { get; set; } = "";
+
+    // Minimum required app version for force-update prompt
+    public string RequiredVersion { get; set; } = "";
+
     public string Message { get; set; } = "";
     public string MessageAlignment { get; set; } = "ltr";
     public bool IsRequired { get; set; } = false;

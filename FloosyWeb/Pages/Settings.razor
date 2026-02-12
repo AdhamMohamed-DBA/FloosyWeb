@@ -127,6 +127,11 @@
         <div class="setting-card">
             <label>@L.T("UpdateBroadcast")</label>
             <div class="input-stack">
+                <label style="font-size:11px; color:#ccc;">@L.T("RequiredVersion")</label>
+                <AppInput Value="@requiredVersionInput"
+                          ValueChanged="@(v => requiredVersionInput = v)"
+                          Placeholder="@L.T("RequiredVersionPlaceholder")" />
+
                 <AppInput Value="@updateVersionInput"
                           ValueChanged="@(v => updateVersionInput = v)"
                           Placeholder="@L.T("VersionPlaceholder")" />
@@ -226,6 +231,7 @@
     bool isCurrentUserAdmin = false;
 
     string updateVersionInput = "";
+    string requiredVersionInput = "";
     string updateMessageInput = "";
     string updateMessageAlignmentInput = "ltr";
     bool isUpdateRequiredInput = false;
@@ -261,6 +267,7 @@
         {
             var broadcast = await Firebase.LoadUpdateBroadcast();
             updateVersionInput = broadcast.Version;
+            requiredVersionInput = string.IsNullOrWhiteSpace(broadcast.RequiredVersion) ? broadcast.Version : broadcast.RequiredVersion;
             updateMessageInput = broadcast.Message;
             updateMessageAlignmentInput = string.Equals(broadcast.MessageAlignment, "rtl", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr";
             isUpdateRequiredInput = broadcast.IsRequired;
@@ -397,6 +404,7 @@
             }
 
             updateVersionInput = (updateVersionInput ?? "").Trim();
+            requiredVersionInput = (requiredVersionInput ?? "").Trim();
             updateMessageInput = (updateMessageInput ?? "").Trim();
 
             if (isUpdateRequiredInput)
@@ -404,6 +412,12 @@
                 if (string.IsNullOrWhiteSpace(updateVersionInput))
                 {
                     ShowMessage(L.T("Error"), L.T("PleaseAddVersion"), L.T("Error"));
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(requiredVersionInput))
+                {
+                    ShowMessage(L.T("Error"), L.T("PleaseAddRequiredVersion"), L.T("Error"));
                     return;
                 }
 
@@ -417,6 +431,7 @@
             await Firebase.SaveUpdateBroadcast(new UpdateBroadcast
             {
                 Version = updateVersionInput,
+                RequiredVersion = requiredVersionInput,
                 Message = updateMessageInput,
                 MessageAlignment = updateMessageAlignmentInput,
                 IsRequired = isUpdateRequiredInput,

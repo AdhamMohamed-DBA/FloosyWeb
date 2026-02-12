@@ -123,12 +123,16 @@
         if (string.IsNullOrWhiteSpace(update.Version) || string.IsNullOrWhiteSpace(update.Message)) return;
 
         var latestVersion = (update.Version ?? string.Empty).Trim();
-        var versionComparison = CompareVersions(CurrentAppVersion, latestVersion);
+        var requiredVersion = string.IsNullOrWhiteSpace(update.RequiredVersion)
+            ? latestVersion
+            : update.RequiredVersion.Trim();
+
+        var versionComparison = CompareVersions(CurrentAppVersion, requiredVersion);
 
         // User version is older than required version => show update-required prompt every app open
         if (versionComparison < 0)
         {
-            requiredLatestVersion = latestVersion;
+            requiredLatestVersion = requiredVersion;
             requiredUpdateMessage = update.Message;
 
             var reqAlignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
