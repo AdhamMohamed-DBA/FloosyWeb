@@ -11,6 +11,7 @@ public class AppData
     // People balances (who owes you / who you owe)
     public ObservableCollection<Person> People { get; set; } = [];
     public ObservableCollection<PersonTransaction> PeopleHistory { get; set; } = [];
+    public ObservableCollection<string> SavedContactNames { get; set; } = [];
 
     public ObservableCollection<string> IncomeCategories { get; set; } = [];
     public ObservableCollection<string> ExpenseCategories { get; set; } = [];

@@ -1,0 +1,28 @@
+@if (Visible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="@Style">
+            @if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <h3>@Title</h3>
+            }
+
+            @ChildContent
+
+            @if (FooterContent is not null)
+            {
+                <div style="margin-top:10px;">
+                    @FooterContent
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+}

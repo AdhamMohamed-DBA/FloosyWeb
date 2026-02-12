@@ -87,7 +87,22 @@
     <div class="modal-backdrop">
         <div class="modal-content">
             <h3>@(editingPerson != null ? "Edit Contact" : "Add Contact")</h3>
-            <input @bind="personNameInput" class="input-dark" placeholder="Contact Name" />
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                <AppInput Value="@personNameInput"
+                          ValueChanged="@(v => personNameInput = v)"
+                          Placeholder="Contact Name"
+                          AriaLabel="Contact name"
+                          Class="no-margin"
+                          />
+                <button class="icon-btn"
+                        type="button"
+                        style="width:40px; height:40px;"
+                        @onclick="OpenSavedNames"
+                        aria-label="Open saved contact names"
+                        title="Saved contact names">
+                    📚
+                </button>
+            </div>
 
             @if (editingPerson == null)
             {
@@ -114,8 +129,16 @@
             }
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SavePerson" disabled="@isSavingPerson">@(isSavingPerson ? "Saving..." : "Save")</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isPersonModalVisible = false">Cancel</button>
+                <AppButton Text="Save"
+                           LoadingText="Saving..."
+                           IsLoading="@isSavingPerson"
+                           Disabled="@isSavingPerson"
+                           Style="flex:1;"
+                           OnClick="@(async _ => await SavePerson())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="flex:1;"
+                           OnClick="@(_ => { isPersonModalVisible = false; return Task.CompletedTask; })" />
             </div>
 
             @if (editingPerson != null)
@@ -127,6 +150,43 @@
         </div>
     </div>
 }
+
+<AppModal Visible="@isSavedNamesVisible" Title="Saved Contact Names">
+    <ChildContent>
+        @if (!(myData.SavedContactNames?.Any() ?? false))
+        {
+            <p class="muted" style="font-size:12px; margin-top:0;">No saved names yet.</p>
+        }
+        else
+        {
+            <div style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+                @foreach (var savedName in myData.SavedContactNames.OrderBy(x => x).ToList())
+                {
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <AppButton Text="@savedName"
+                                   Style="flex:1; text-align:left; justify-content:flex-start;"
+                                   OnClick="@(_ => { PickSavedName(savedName); return Task.CompletedTask; })" />
+                        <button class="icon-btn"
+                                type="button"
+                                style="font-size:14px; color:#e74c3c;"
+                                @onclick="@(async () => await DeleteSavedName(savedName))"
+                                aria-label="Delete saved name"
+                                title="Delete saved name">
+                            🗑️
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+
+    <FooterContent>
+        <AppButton Text="Close"
+                   Variant="ghost"
+                   Style="width:100%;"
+                   OnClick="@(_ => { isSavedNamesVisible = false; return Task.CompletedTask; })" />
+    </FooterContent>
+</AppModal>
 
 @* Person actions (in / out) *@
 @if (isMoveModalVisible && selectedPerson != null)
@@ -265,6 +325,7 @@
     bool isDeletePersonConfirmVisible = false;
     bool isSavingPerson = false;
     bool isSavingMove = false;
+    bool isSavedNamesVisible = false;
 
     // Edit/delete specific debt moves
     bool isEditMoveVisible = false;
@@ -303,6 +364,7 @@
         // Ensure collections are not null when loading old data
         myData.People ??= new System.Collections.ObjectModel.ObservableCollection<Person>();
         myData.PeopleHistory ??= new System.Collections.ObjectModel.ObservableCollection<PersonTransaction>();
+        myData.SavedContactNames ??= new System.Collections.ObjectModel.ObservableCollection<string>();
 
         if (myData.Accounts.Any())
         {
@@ -344,16 +406,39 @@
         isDeletePersonConfirmVisible = true;
     }
 
+    void OpenSavedNames()
+    {
+        isSavedNamesVisible = true;
+    }
+
+    void PickSavedName(string name)
+    {
+        personNameInput = name;
+        isSavedNamesVisible = false;
+    }
+
+    async Task DeleteSavedName(string name)
+    {
+        myData.SavedContactNames.Remove(name);
+        await Firebase.Save(myData);
+    }
+
     async Task SavePerson()
     {
-        if (string.IsNullOrWhiteSpace(personNameInput))
+        var normalizedName = (personNameInput ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
             return;
 
         isSavingPerson = true;
 
+        if (!myData.SavedContactNames.Any(x => string.Equals(x, normalizedName, StringComparison.OrdinalIgnoreCase)))
+        {
+            myData.SavedContactNames.Add(normalizedName);
+        }
+
         if (editingPerson == null)
         {
-            var p = new Person { Name = personNameInput };
+            var p = new Person { Name = normalizedName };
             myData.People.Add(p);
 
             // Optional initial debt on create (only affects remaining debt + people history)
@@ -395,7 +480,7 @@
         }
         else
         {
-            editingPerson.Name = personNameInput;
+            editingPerson.Name = normalizedName;
         }
 
         await Firebase.Save(myData);
@@ -699,6 +784,8 @@
         </div>
     </div>
 }
+
+
 
 
 

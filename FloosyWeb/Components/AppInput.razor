@@ -1,0 +1,20 @@
+<input type="@Type"
+       class="input-dark @Class"
+       placeholder="@Placeholder"
+       value="@Value"
+       aria-label="@AriaLabel"
+       @oninput="HandleInput" />
+
+@code {
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string Placeholder { get; set; } = "";
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public string AriaLabel { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    async Task HandleInput(ChangeEventArgs e)
+    {
+        await ValueChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    }
+}
