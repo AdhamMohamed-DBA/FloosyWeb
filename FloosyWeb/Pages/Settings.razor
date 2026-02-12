@@ -3,59 +3,72 @@
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject LocalizationService L
 
 <div class="page-section" style="padding-bottom:88px;">
 
     <div style="text-align:center; margin-bottom:30px;">
         <img src="images/appicon.png" style="width:80px; height:80px; border-radius:15px;" />
-        <h3 style="margin: 10px 0 5px 0;">Settings</h3>
+        <h3 style="margin: 10px 0 5px 0;">@L.T("Settings")</h3>
         <p style="color:gray; font-size:14px; margin:0;">@userEmail</p>
     </div>
 
     <div class="setting-card">
-        <label>Account Management</label>
+        <label>@L.T("Language")</label>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+            <AppButton Text="@L.T("English")"
+                       Style="@LanguageEnglishButtonStyle"
+                       OnClick="@(async _ => await SetLanguage("en"))" />
+            <AppButton Text="@L.T("Arabic")"
+                       Style="@LanguageArabicButtonStyle"
+                       OnClick="@(async _ => await SetLanguage("ar"))" />
+        </div>
+    </div>
+
+    <div class="setting-card">
+        <label>@L.T("AccountManagement")</label>
 
         <div class="input-stack" style="margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:20px;">
-            <label style="font-size:11px; color:#ccc;">Change Email</label>
+            <label style="font-size:11px; color:#ccc;">@L.T("ChangeEmail")</label>
             <AppInput Value="@newEmailInput"
                       ValueChanged="@(v => newEmailInput = v)"
-                      Placeholder="New Email Address"
+                      Placeholder="@L.T("NewEmailAddress")"
                       AriaLabel="New email address" />
             <AppInput Type="password"
                       Value="@emailPassInput"
                       ValueChanged="@(v => emailPassInput = v)"
-                      Placeholder="Current Password"
+                      Placeholder="@L.T("CurrentPassword")"
                       AriaLabel="Current password" />
-            <AppButton Text="Update Email"
-                       LoadingText="Updating..."
+            <AppButton Text="@L.T("UpdateEmail")"
+                       LoadingText="@L.T("Updating")"
                        IsLoading="@isUpdatingEmail"
                        Disabled="@isUpdatingEmail"
                        Style="width:100%;"
                        OnClick="@(async _ => await DoUpdateEmail())" />
         </div>
 
-        <label style="font-size:11px; color:#e74c3c;">Danger Zone</label>
-        <button class="btn-logout" @onclick="() => isDeleteConfirmVisible = true">🗑️ Delete Account</button>
+        <label style="font-size:11px; color:#e74c3c;">@L.T("DangerZone")</label>
+        <button class="btn-logout" @onclick="() => isDeleteConfirmVisible = true">@L.T("DeleteAccountAction")</button>
     </div>
 
     <div class="setting-card">
-        <label>Security</label>
+        <label>@L.T("Security")</label>
         <div class="input-stack">
             <div style="display:flex; align-items:center; gap:10px; white-space:nowrap;">
-                <span>Biometric unlock (this device)</span>
+                <span>@L.T("BiometricUnlock")</span>
                 <input type="checkbox" checked="@useBiometric" @onchange="ToggleBiometric" aria-label="Enable biometric unlock" />
             </div>
             <p style="color:gray; font-size:10px; margin-top:5px;">
-                Uses Face ID / fingerprint when supported. On devices without biometrics, login stays password-only.
+                @L.T("BiometricHint")
             </p>
         </div>
     </div>
 
     <div class="setting-card">
-        <label>Start of Month (Salary Day)</label>
+        <label>@L.T("StartOfMonth")</label>
         <div class="input-stack">
             <input type="number" min="1" max="28" @bind="financialDay" class="input-dark" placeholder="e.g. 25" style="text-align:center;" />
-            <AppButton Text="Save"
+            <AppButton Text="@L.T("Save")"
                        LoadingText="Saving..."
                        IsLoading="@isSavingFinancialDay"
                        Disabled="@isSavingFinancialDay"
@@ -63,17 +76,17 @@
                        OnClick="@(async _ => await UpdateFinancialDay())" />
         </div>
         <p style="color:gray; font-size:10px; margin-top:5px;">
-            Example: If set to 25, transactions from Feb 25th will appear in March charts.
+            @L.T("SalaryDayExample")
         </p>
     </div>
 
     <div class="setting-card">
-        <label>Display Name</label>
+        <label>@L.T("DisplayName")</label>
         <div class="input-stack">
             <AppInput Value="@newName"
                       ValueChanged="@(v => newName = v)"
-                      Placeholder="Your Name" />
-            <AppButton Text="Save"
+                      Placeholder="@L.T("YourName")" />
+            <AppButton Text="@L.T("Save")"
                        LoadingText="Saving..."
                        IsLoading="@isUpdatingName"
                        Disabled="@isUpdatingName"
@@ -83,18 +96,18 @@
     </div>
 
     <div class="setting-card">
-        <label>Change Password</label>
+        <label>@L.T("ChangePassword")</label>
         <div class="input-stack">
             <AppInput Type="password"
                       Value="@oldPass"
                       ValueChanged="@(v => oldPass = v)"
-                      Placeholder="Old Password" />
+                      Placeholder="@L.T("OldPassword")" />
             <AppInput Type="password"
                       Value="@newPass"
                       ValueChanged="@(v => newPass = v)"
-                      Placeholder="New Password" />
-            <AppButton Text="Update Password"
-                       LoadingText="Updating..."
+                      Placeholder="@L.T("NewPassword")" />
+            <AppButton Text="@L.T("UpdatePassword")"
+                       LoadingText="@L.T("Updating")"
                        IsLoading="@isUpdatingPassword"
                        Disabled="@isUpdatingPassword"
                        Style="width:100%;"
@@ -103,32 +116,43 @@
     </div>
 
     <div class="setting-card">
-        <label>Support</label>
+        <label>@L.T("Support")</label>
         <a href="https://wa.me/201009582510" target="_blank" class="btn-whatsapp">
-            <span>💬</span> Contact via WhatsApp
+            @L.T("ContactWhatsapp")
         </a>
     </div>
 
     @if (isCurrentUserAdmin)
     {
         <div class="setting-card">
-            <label>Update Broadcast</label>
+            <label>@L.T("UpdateBroadcast")</label>
             <div class="input-stack">
                 <AppInput Value="@updateVersionInput"
                           ValueChanged="@(v => updateVersionInput = v)"
-                          Placeholder="Version (e.g. 2.4.0)" />
+                          Placeholder="@L.T("VersionPlaceholder")" />
+
+                <div style="display:flex; gap:8px;">
+                    <AppButton Text="@L.T("AlignEnglish")"
+                               Style="@AlignEnglishButtonStyle"
+                               OnClick="@(_ => { updateMessageAlignmentInput = "ltr"; return Task.CompletedTask; })" />
+                    <AppButton Text="@L.T("AlignArabic")"
+                               Style="@AlignArabicButtonStyle"
+                               OnClick="@(_ => { updateMessageAlignmentInput = "rtl"; return Task.CompletedTask; })" />
+                </div>
 
                 <textarea @bind="updateMessageInput"
                           class="input-dark"
+                          style="text-align:@(updateMessageAlignmentInput == "rtl" ? "right" : "left");"
+                          dir="@updateMessageAlignmentInput"
                           rows="4"
-                          placeholder="Write what's new message..."></textarea>
+                          placeholder="@L.T("UpdateMessagePlaceholder")"></textarea>
 
                 <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px 0;">
                     <input type="checkbox" @bind="isUpdateRequiredInput" style="width:16px; height:16px; accent-color:#00E676;" />
-                    <span style="color:#ccc; font-size:12px;">Show update popup once per user for this version</span>
+                    <span style="color:#ccc; font-size:12px;">@L.T("ShowUpdatePopupOnce")</span>
                 </div>
 
-                <AppButton Text="Save Update Message"
+                <AppButton Text="@L.T("SaveUpdateMessage")"
                            LoadingText="Saving..."
                            IsLoading="@isSavingUpdateNotice"
                            Disabled="@isSavingUpdateNotice"
@@ -138,7 +162,7 @@
         </div>
     }
 
-    <button class="btn-logout" style="margin-top:20px;" @onclick="@(async () => await SignOut())">Sign Out</button>
+    <button class="btn-logout" style="margin-top:20px;" @onclick="@(async () => await SignOut())">@L.T("SignOut")</button>
 </div>
 
 @if (isMessageVisible)
@@ -149,7 +173,7 @@
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
         </ChildContent>
         <FooterContent>
-            <AppButton Text="OK"
+            <AppButton Text="@L.T("Ok")"
                        Style="width:100%;"
                        OnClick="@(_ => { isMessageVisible = false; return Task.CompletedTask; })" />
         </FooterContent>
@@ -160,17 +184,17 @@
 {
     <AppModal Visible="@isDeleteConfirmVisible" Style="text-align:center; border: 1px solid #e74c3c;">
         <ChildContent>
-            <h3 style="margin-top:0; color:#e74c3c;">Delete Account?</h3>
-            <p style="color:#ccc; margin-bottom:15px; font-size:14px;">This action cannot be undone. All your data will be lost.</p>
+            <h3 style="margin-top:0; color:#e74c3c;">@L.T("DeleteAccountPrompt")</h3>
+            <p style="color:#ccc; margin-bottom:15px; font-size:14px;">@L.T("DeleteAccountWarning")</p>
 
-            <input @bind="deletePassInput" type="password" class="input-dark" placeholder="Confirm Password" style="margin-bottom:15px;" />
+            <input @bind="deletePassInput" type="password" class="input-dark" placeholder="@L.T("ConfirmPassword")" style="margin-bottom:15px;" />
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px;">
-                <AppButton Text="Yes, Delete"
+                <AppButton Text="@L.T("YesDelete")"
                            Style="background:#e74c3c; color:white;"
                            OnClick="@(async _ => await DoDeleteAccount())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="background:#333; color:white;"
                            OnClick="@(_ => { isDeleteConfirmVisible = false; return Task.CompletedTask; })" />
@@ -203,7 +227,20 @@
 
     string updateVersionInput = "";
     string updateMessageInput = "";
+    string updateMessageAlignmentInput = "ltr";
     bool isUpdateRequiredInput = false;
+
+    string LanguageEnglishButtonStyle =>
+        $"flex:1; background:{(L.CurrentLanguage == "en" ? "#00E676" : "#333")}; color:{(L.CurrentLanguage == "en" ? "black" : "white")};";
+
+    string LanguageArabicButtonStyle =>
+        $"flex:1; background:{(L.CurrentLanguage == "ar" ? "#00E676" : "#333")}; color:{(L.CurrentLanguage == "ar" ? "black" : "white")};";
+
+    string AlignEnglishButtonStyle =>
+        $"flex:1; background:{(updateMessageAlignmentInput == "ltr" ? "#00E676" : "#333")}; color:{(updateMessageAlignmentInput == "ltr" ? "black" : "white")};";
+
+    string AlignArabicButtonStyle =>
+        $"flex:1; background:{(updateMessageAlignmentInput == "rtl" ? "#00E676" : "#333")}; color:{(updateMessageAlignmentInput == "rtl" ? "black" : "white")};";
 
     void ShowMessage(string title, string body, string type = "Info")
     {
@@ -225,6 +262,7 @@
             var broadcast = await Firebase.LoadUpdateBroadcast();
             updateVersionInput = broadcast.Version;
             updateMessageInput = broadcast.Message;
+            updateMessageAlignmentInput = string.Equals(broadcast.MessageAlignment, "rtl", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr";
             isUpdateRequiredInput = broadcast.IsRequired;
         }
 
@@ -243,10 +281,10 @@
         isSavingFinancialDay = true;
         try
         {
-            if (financialDay < 1 || financialDay > 28) { ShowMessage("Error", "Day must be between 1 and 28", "Error"); return; }
+            if (financialDay < 1 || financialDay > 28) { ShowMessage(L.T("Error"), L.T("FinancialDayRange"), L.T("Error")); return; }
             myData.FinancialStartDay = financialDay;
             await Firebase.Save(myData);
-            ShowMessage("Success", "Financial start day updated!", "Success");
+            ShowMessage(L.T("Success"), L.T("FinancialDayUpdated"), L.T("Success"));
         }
         finally
         {
@@ -261,7 +299,7 @@
         {
             if (string.IsNullOrWhiteSpace(newName)) return;
             await Firebase.UpdateUserName(newName);
-            ShowMessage("Success", "Name updated!", "Success");
+            ShowMessage(L.T("Success"), L.T("NameUpdated"), L.T("Success"));
         }
         finally
         {
@@ -274,16 +312,16 @@
         isUpdatingPassword = true;
         try
         {
-            if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { ShowMessage("Error", "Enter old and new password.", "Error"); return; }
+            if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { ShowMessage(L.T("Error"), L.T("EnterOldNewPassword"), L.T("Error")); return; }
             // 🔥 FIX: Check for Null Email before calling Login (CS8604)
-            if (string.IsNullOrEmpty(Firebase.UserEmail)) { ShowMessage("Error", "User email not found.", "Error"); return; }
+            if (string.IsNullOrEmpty(Firebase.UserEmail)) { ShowMessage(L.T("Error"), L.T("UserEmailNotFound"), L.T("Error")); return; }
 
             // Use '?? ""' safely because we checked it's not null/empty above
             var verify = await Firebase.Login(Firebase.UserEmail ?? "", oldPass);
-            if (verify != "Success") { ShowMessage("Failed", "Old password incorrect!", "Error"); return; }
+            if (verify != "Success") { ShowMessage(L.T("Error"), L.T("OldPasswordIncorrect"), L.T("Error")); return; }
 
             var res = await Firebase.ChangePassword(newPass);
-            ShowMessage(res == "Success" ? "Success" : "Info", res, res == "Success" ? "Success" : "Error");
+            ShowMessage(res == "Success" ? L.T("Success") : L.T("Error"), res, res == "Success" ? L.T("Success") : L.T("Error"));
             oldPass = ""; newPass = "";
         }
         finally
@@ -299,24 +337,24 @@
         {
             if (string.IsNullOrWhiteSpace(newEmailInput) || string.IsNullOrWhiteSpace(emailPassInput))
             {
-                ShowMessage("Error", "Enter new email and current password.", "Error");
+                ShowMessage(L.T("Error"), L.T("EnterNewEmailCurrentPassword"), L.T("Error"));
                 return;
             }
 
             var currentEmail = Firebase.UserEmail ?? "";
-            if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
+            if (string.IsNullOrEmpty(currentEmail)) { ShowMessage(L.T("Error"), L.T("UserNotFound"), L.T("Error")); return; }
 
             var verify = await Firebase.Login(currentEmail, emailPassInput);
-            if (verify != "Success") { ShowMessage("Failed", "Password incorrect!", "Error"); return; }
+            if (verify != "Success") { ShowMessage(L.T("Error"), L.T("PasswordIncorrect"), L.T("Error")); return; }
 
             var res = await Firebase.UpdateEmail(newEmailInput);
             if (res == "Success")
             {
                 userEmail = newEmailInput;
-                ShowMessage("Success", "Email updated successfully!", "Success");
+                ShowMessage(L.T("Success"), L.T("EmailUpdatedSuccessfully"), L.T("Success"));
                 newEmailInput = ""; emailPassInput = "";
             }
-            else ShowMessage("Error", res, "Error");
+            else ShowMessage(L.T("Error"), res, L.T("Error"));
         }
         finally
         {
@@ -329,12 +367,12 @@
         if (string.IsNullOrWhiteSpace(deletePassInput)) { return; }
 
         var currentEmail = Firebase.UserEmail ?? "";
-        if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
+        if (string.IsNullOrEmpty(currentEmail)) { ShowMessage(L.T("Error"), L.T("UserNotFound"), L.T("Error")); return; }
 
         var verify = await Firebase.Login(currentEmail, deletePassInput);
         if (verify != "Success")
         {
-            ShowMessage("Failed", "Password incorrect! Cannot delete.", "Error");
+            ShowMessage(L.T("Error"), L.T("PasswordIncorrectCannotDelete"), L.T("Error"));
             return;
         }
 
@@ -342,7 +380,7 @@
         if (res == "Success") Nav.NavigateTo("", forceLoad: true);
         else
         {
-            ShowMessage("Error", res, "Error");
+            ShowMessage(L.T("Error"), res, L.T("Error"));
             isDeleteConfirmVisible = false;
         }
     }
@@ -354,7 +392,7 @@
         {
             if (!await Firebase.IsCurrentUserAdmin())
             {
-                ShowMessage("Error", "Unauthorized.", "Error");
+                ShowMessage(L.T("Error"), L.T("Unauthorized"), L.T("Error"));
                 return;
             }
 
@@ -365,13 +403,13 @@
             {
                 if (string.IsNullOrWhiteSpace(updateVersionInput))
                 {
-                    ShowMessage("Error", "Please add update version.", "Error");
+                    ShowMessage(L.T("Error"), L.T("PleaseAddVersion"), L.T("Error"));
                     return;
                 }
 
                 if (string.IsNullOrWhiteSpace(updateMessageInput))
                 {
-                    ShowMessage("Error", "Please add update message.", "Error");
+                    ShowMessage(L.T("Error"), L.T("PleaseAddUpdateMessage"), L.T("Error"));
                     return;
                 }
             }
@@ -380,10 +418,11 @@
             {
                 Version = updateVersionInput,
                 Message = updateMessageInput,
+                MessageAlignment = updateMessageAlignmentInput,
                 IsRequired = isUpdateRequiredInput,
                 UpdatedAt = DateTime.UtcNow
             });
-            ShowMessage("Success", "Update broadcast saved.", "Success");
+            ShowMessage(L.T("Success"), L.T("UpdateSaved"), L.T("Success"));
         }
         finally
         {
@@ -406,7 +445,7 @@
 
             if (!supported)
             {
-                ShowMessage("Not Supported", "Biometric unlock is not available on this device.", "Error");
+                ShowMessage(L.T("NotSupported"), L.T("BiometricNotSupportedDevice"), L.T("Error"));
                 useBiometric = false;
                 return;
             }
@@ -414,7 +453,7 @@
             var ok = await JS.InvokeAsync<bool>("floosyBiometric.register");
             if (!ok)
             {
-                ShowMessage("Failed", "Could not enable biometric unlock on this device.", "Error");
+                ShowMessage(L.T("Error"), L.T("CouldNotEnableBiometric"), L.T("Error"));
                 useBiometric = false;
                 return;
             }
@@ -433,5 +472,11 @@
         try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
         Firebase.SignOut();
         Nav.NavigateTo("", forceLoad: true);
+    }
+
+    async Task SetLanguage(string lang)
+    {
+        await L.SetLanguageAsync(lang);
+        await InvokeAsync(StateHasChanged);
     }
 }

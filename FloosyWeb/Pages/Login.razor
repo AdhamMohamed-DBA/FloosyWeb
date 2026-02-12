@@ -2,6 +2,7 @@
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject LocalizationService L
 @using Blazored.LocalStorage
 @inject ISyncLocalStorageService LocalStorage
 
@@ -13,53 +14,53 @@
 
     @if (mode == 0)
     {
-        <h3 style="color:white; margin-bottom:20px;">Welcome Back!</h3>
-        <input @bind="email" placeholder="Email" class="input-dark" aria-label="Email" />
+        <h3 style="color:white; margin-bottom:20px;">@L.T("WelcomeBack")</h3>
+        <input @bind="email" placeholder="@L.T("Email")" class="input-dark" aria-label="@L.T("Email")" />
 
-        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="Password" class="input-dark" aria-label="Password" />
+        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="@L.T("Password")" class="input-dark" aria-label="@L.T("Password")" />
 
         <!-- 🔒 SECURITY FIX: Remember Me now only saves email, NOT password -->
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; color:#ccc; cursor:pointer;" @onclick="() => rememberMe = !rememberMe">
             <input type="checkbox" @bind="rememberMe" style="width:20px; height:20px; cursor:pointer; accent-color:#00E676;" aria-label="Remember email" />
-            <span style="font-size:14px; user-select:none;">Remember Email</span>
+            <span style="font-size:14px; user-select:none;">@L.T("RememberEmail")</span>
         </div>
 
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; color:#ccc; cursor:pointer;" @onclick="() => showPassword = !showPassword">
             <input type="checkbox" @bind="showPassword" style="width:20px; height:20px; cursor:pointer; accent-color:#00E676;" aria-label="Show password" />
-            <span style="font-size:14px; user-select:none;">Show Password</span>
+            <span style="font-size:14px; user-select:none;">@L.T("ShowPassword")</span>
         </div>
 
-        <button class="btn-primary" @onclick="DoLogin">Login</button>
+        <button class="btn-primary" @onclick="DoLogin">@L.T("Login")</button>
 
         @if (canUseBiometric)
         {
             <button class="btn-primary" style="margin-top:10px; background:#333; color:white; box-shadow:none;" @onclick="LoginWithBiometric">
-                Login with Biometric
+                @L.T("LoginWithBiometric")
             </button>
         }
 
         <div style="display:flex; justify-content:space-between; margin-top:15px;">
-            <button class="btn-link" @onclick="() => mode = 1" aria-label="Create account">Create Account</button>
-            <button class="btn-link" @onclick="() => mode = 2" aria-label="Reset password">Forgot Password?</button>
+            <button class="btn-link" @onclick="() => mode = 1" aria-label="Create account">@L.T("CreateAccount")</button>
+            <button class="btn-link" @onclick="() => mode = 2" aria-label="Reset password">@L.T("ForgotPassword")</button>
         </div>
     }
     else if (mode == 1)
     {
-        <h3 style="color:white; margin-bottom:20px;">Create Account</h3>
-        <input @bind="newName" placeholder="Full Name" class="input-dark" aria-label="Full name" />
-        <input @bind="email" placeholder="Email" class="input-dark" aria-label="Email" />
+        <h3 style="color:white; margin-bottom:20px;">@L.T("CreateAccount")</h3>
+        <input @bind="newName" placeholder="@L.T("FullName")" class="input-dark" aria-label="Full name" />
+        <input @bind="email" placeholder="@L.T("Email")" class="input-dark" aria-label="@L.T("Email")" />
 
-        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="Password (min 6 characters)" class="input-dark" aria-label="Password" />
+        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="@L.T("PasswordMin6")" class="input-dark" aria-label="@L.T("Password")" />
 
-        <button class="btn-primary" @onclick="DoRegister">Sign Up</button>
-        <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">Back to Login</button>
+        <button class="btn-primary" @onclick="DoRegister">@L.T("SignUp")</button>
+        <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">@L.T("BackToLogin")</button>
     }
     else if (mode == 2)
     {
-        <h3 style="color:white; margin-bottom:20px;">Reset Password</h3>
-        <input @bind="email" placeholder="Email" class="input-dark" aria-label="Email" />
-        <button class="btn-primary" @onclick="DoReset">Send Link</button>
-        <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">Back to Login</button>
+        <h3 style="color:white; margin-bottom:20px;">@L.T("ResetPassword")</h3>
+        <input @bind="email" placeholder="@L.T("Email")" class="input-dark" aria-label="@L.T("Email")" />
+        <button class="btn-primary" @onclick="DoReset">@L.T("SendLink")</button>
+        <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">@L.T("BackToLogin")</button>
     }
 </div>
 
@@ -69,7 +70,7 @@
         <div class="modal-content" style="text-align:center;">
             <h3 style="margin-top:0; color:@(messageType == "Success" ? "#00E676" : "#e74c3c");">@messageTitle</h3>
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
-            <button class="btn-primary" style="padding:10px;" @onclick="() => isMessageVisible = false">OK</button>
+            <button class="btn-primary" style="padding:10px;" @onclick="() => isMessageVisible = false">@L.T("Ok")</button>
         </div>
     </div>
 }
@@ -218,7 +219,7 @@
     {
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
-            ShowMessage("Missing Info", "Please enter email and password.", "Error");
+            ShowMessage(L.T("MissingInfo"), L.T("EnterEmailAndPassword"), L.T("Error"));
             return;
         }
 
@@ -254,7 +255,7 @@
         }
         else
         {
-            ShowMessage("Login Failed", res, "Error");
+            ShowMessage(L.T("LoginFailed"), res, L.T("Error"));
         }
     }
 
@@ -262,19 +263,19 @@
     {
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(newName))
         {
-            ShowMessage("Missing Info", "Please fill in all fields.", "Error");
+            ShowMessage(L.T("MissingInfo"), L.T("PleaseFillAllFields"), L.T("Error"));
             return;
         }
 
         if (!IsValidEmail(email))
         {
-            ShowMessage("Invalid Email", "Please enter a valid email like name@gmail.com or name@outlook.com.", "Error");
+            ShowMessage(L.T("InvalidEmail"), L.T("InvalidEmailHint"), L.T("Error"));
             return;
         }
 
         if (password.Length < 6)
         {
-            ShowMessage("Weak Password", "Password must be at least 6 characters.", "Error");
+            ShowMessage(L.T("WeakPassword"), L.T("WeakPasswordHint"), L.T("Error"));
             return;
         }
 
@@ -285,7 +286,7 @@
         }
         else
         {
-            ShowMessage("Registration Failed", res, "Error");
+            ShowMessage(L.T("RegistrationFailed"), res, L.T("Error"));
         }
     }
 
@@ -324,21 +325,21 @@
             var supported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
             if (!supported)
             {
-                ShowMessage("Not Supported", "Biometric login is not available on this device.", "Error");
+                ShowMessage(L.T("NotSupported"), L.T("BiometricNotAvailable"), L.T("Error"));
                 return;
             }
 
             var enabled = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
             if (!enabled)
             {
-                ShowMessage("Not Enabled", "Go to Settings → Security and enable biometric unlock on this device first.", "Error");
+                ShowMessage(L.T("NotEnabled"), L.T("BiometricEnableHint"), L.T("Error"));
                 return;
             }
 
             var ok = await JS.InvokeAsync<bool>("floosyBiometric.verify");
             if (!ok)
             {
-                ShowMessage("Cancelled", "Biometric login was cancelled or failed.", "Error");
+                ShowMessage(L.T("Cancelled"), L.T("BiometricCancelled"), L.T("Error"));
                 return;
             }
 
@@ -346,7 +347,7 @@
             var creds = await JS.InvokeAsync<BioCreds>("floosyBiometric.getCredentials");
             if (creds == null || string.IsNullOrWhiteSpace(creds.e) || string.IsNullOrWhiteSpace(creds.p))
             {
-                ShowMessage("Login Required", "Please login once with email & password after enabling biometric, so we can store credentials for biometric login.", "Error");
+                ShowMessage(L.T("LoginRequired"), L.T("BiometricNeedFirstLogin"), L.T("Error"));
                 return;
             }
 
@@ -354,7 +355,7 @@
             var res = await Firebase.Login(creds.e, creds.p);
             if (res != "Success")
             {
-                ShowMessage("Login Failed", "Stored credentials are no longer valid. Please login again with email & password.", "Error");
+                ShowMessage(L.T("LoginFailed"), L.T("StoredCredentialsInvalid"), L.T("Error"));
                 return;
             }
 
@@ -369,7 +370,7 @@
         }
         catch
         {
-            ShowMessage("Error", "Biometric login is not available right now.", "Error");
+            ShowMessage(L.T("Error"), L.T("BiometricUnavailableNow"), L.T("Error"));
         }
     }
 
@@ -377,19 +378,19 @@
     {
         if (string.IsNullOrEmpty(email))
         {
-            ShowMessage("Missing Email", "Enter email first.", "Error");
+            ShowMessage(L.T("MissingEmail"), L.T("EnterEmailFirst"), L.T("Error"));
             return;
         }
 
         var res = await Firebase.ResetPassword(email);
         if (res == "Success")
         {
-            ShowMessage("Email Sent", "Check your inbox for reset link!", "Success");
+            ShowMessage(L.T("EmailSent"), L.T("ResetEmailSentHint"), L.T("Success"));
             mode = 0;
         }
         else
         {
-            ShowMessage("Error", res, "Error");
+            ShowMessage(L.T("Error"), res, L.T("Error"));
         }
     }
 }

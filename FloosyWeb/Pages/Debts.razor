@@ -1,14 +1,15 @@
 @page "/debts"
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
+@inject LocalizationService L
 
 <div class="page-section" style="padding-bottom:88px;">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <div style="display:flex; align-items:center; gap:8px;">
-            <h3 style="margin:0;">Debts 💵</h3>
+            <h3 style="margin:0;">@L.T("DebtsTitle")</h3>
         </div>
-        <AppButton Text="+ Add Contact"
+        <AppButton Text="@L.T("AddContact")"
                    Style="padding:6px 14px; font-size:13px; border-radius:999px; width:auto;"
                    OnClick="@(_ => { ShowAddPerson(); return Task.CompletedTask; })" />
     </div>
@@ -16,8 +17,8 @@
     @if (!PeopleList.Any())
     {
         <div style="text-align:center; padding:30px; color:gray; font-size:13px;">
-            <p>No contacts with debts yet.</p>
-            <p>Use "Add Contact" to start tracking who owes you or who you owe.</p>
+            <p>@L.T("NoDebtContacts")</p>
+            <p>@L.T("NoDebtContactsHint")</p>
         </div>
     }
     else
@@ -52,7 +53,7 @@
     @if (RecentPeopleMoves.Any())
     {
         <div style="margin-top:30px;">
-            <h4 style="margin:0 0 10px 0;">Recent Activity</h4>
+            <h4 style="margin:0 0 10px 0;">@L.T("RecentActivity")</h4>
             <div style="display:flex; flex-direction:column; gap:8px;">
                 @foreach (var m in RecentPeopleMoves)
                 {
@@ -61,7 +62,7 @@
                         <div style="font-size:11px;">
                             <div style="color:white; font-weight:bold;">@m.PersonName</div>
                             <div style="color:gray;">
-                                @(m.IsFromPerson ? "They paid you" : "You paid them")
+                                @(m.IsFromPerson ? L.T("TheyPaidYou") : L.T("YouPaidThem"))
                             </div>
                             <div style="color:gray;">@m.Date.ToString("dd/MM/yyyy")</div>
                         </div>
@@ -86,11 +87,11 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>@(editingPerson != null ? "Edit Contact" : "Add Contact")</h3>
+            <h3>@(editingPerson != null ? L.T("EditContact") : L.T("AddContact"))</h3>
             <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
                 <AppInput Value="@personNameInput"
                           ValueChanged="@(v => personNameInput = v)"
-                          Placeholder="Contact Name"
+                          Placeholder="@L.T("ContactName")"
                           AriaLabel="Contact name"
                           Class="no-margin"
                           />
@@ -99,43 +100,43 @@
                         style="width:40px; height:40px;"
                         @onclick="OpenSavedNames"
                         aria-label="Open saved contact names"
-                        title="Saved contact names">
+                        title="@L.T("SavedContactNames")">
                     📚
                 </button>
             </div>
 
             @if (editingPerson == null)
             {
-                <label style="color:gray; font-size:12px; margin-top:4px;">Initial debt (optional)</label>
-                <input type="number" @bind="initialAmount" class="input-dark" placeholder="Amount" />
+                <label style="color:gray; font-size:12px; margin-top:4px;">@L.T("InitialDebtOptional")</label>
+                <input type="number" @bind="initialAmount" class="input-dark" placeholder="@L.T("Amount")" />
 
                 <div style="display:flex; gap:8px; margin-bottom:8px;">
                     <button class="btn-primary"
                             style="flex:1; background:@(initialTheyOweMe ? "#2ecc71" : "#333"); color:white;"
                             @onclick="() => initialTheyOweMe = true">
-                        They owe me
+                        @L.T("TheyOweMe")
                     </button>
                     <button class="btn-primary"
                             style="flex:1; background:@(!initialTheyOweMe ? "#e74c3c" : "#333"); color:white;"
                             @onclick="() => initialTheyOweMe = false">
-                        I owe them
+                        @L.T("IOweThem")
                     </button>
                 </div>
 
-                <label style="color:gray; font-size:12px;">Date</label>
+                <label style="color:gray; font-size:12px;">@L.T("Date")</label>
                 <input type="date" @bind="initialDate" class="input-dark" />
 
-                <input @bind="initialNote" class="input-dark" placeholder="Description (optional)" />
+                <input @bind="initialNote" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
             }
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <AppButton Text="Save"
+                <AppButton Text="@L.T("Save")"
                            LoadingText="Saving..."
                            IsLoading="@isSavingPerson"
                            Disabled="@isSavingPerson"
                            Style="flex:1;"
                            OnClick="@(async _ => await SavePerson())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
                            OnClick="@(_ => { isPersonModalVisible = false; return Task.CompletedTask; })" />
@@ -143,7 +144,7 @@
 
             @if (editingPerson != null)
             {
-                <AppButton Text="Delete Contact"
+                <AppButton Text="@L.T("DeleteContact")"
                            Variant="ghost"
                            Style="margin-top:10px; color:#e74c3c;"
                            OnClick="@(_ => { ConfirmDeletePerson(); return Task.CompletedTask; })" />
@@ -152,11 +153,11 @@
     </div>
 }
 
-<AppModal Visible="@isSavedNamesVisible" Title="Saved Contact Names">
+<AppModal Visible="@isSavedNamesVisible" Title="@L.T("SavedContactNames")">
     <ChildContent>
         @if (!(myData.SavedContactNames?.Any() ?? false))
         {
-            <p class="muted" style="font-size:12px; margin-top:0;">No saved names yet.</p>
+            <p class="muted" style="font-size:12px; margin-top:0;">@L.T("NoSavedNames")</p>
         }
         else
         {
@@ -182,7 +183,7 @@
     </ChildContent>
 
     <FooterContent>
-        <AppButton Text="Close"
+        <AppButton Text="@L.T("Close")"
                    Variant="ghost"
                    Style="width:100%;"
                    OnClick="@(_ => { isSavedNamesVisible = false; return Task.CompletedTask; })" />
@@ -197,40 +198,40 @@
             <h3>@selectedPerson.Name</h3>
 
             <p style="color:gray; font-size:12px; margin-top:0;">
-                Current: <b style="color:@GetPersonColor(selectedPerson)">@GetPersonBalanceDisplay(selectedPerson)</b>
+                @L.T("Current"): <b style="color:@GetPersonColor(selectedPerson)">@GetPersonBalanceDisplay(selectedPerson)</b>
             </p>
 
-            <label style="color:gray; font-size:12px;">Direction</label>
+            <label style="color:gray; font-size:12px;">@L.T("Direction")</label>
             <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <button class="btn-primary" style="flex:1; background:@(isFromPerson ? "#2ecc71" : "#333"); color:white;"
                         @onclick="@(() => isFromPerson = true)">
-                    They pay you
+                    @L.T("TheyPaidYou")
                 </button>
                 <button class="btn-primary" style="flex:1; background:@(!isFromPerson ? "#e74c3c" : "#333"); color:white;"
                         @onclick="@(() => isFromPerson = false)">
-                    You pay them
+                    @L.T("YouPaidThem")
                 </button>
             </div>
 
-            <label style="color:gray; font-size:12px;">Date</label>
+            <label style="color:gray; font-size:12px;">@L.T("Date")</label>
             <input type="date" @bind="moveDate" class="input-dark" />
 
-            <label style="color:gray; font-size:12px;">Account</label>
+            <label style="color:gray; font-size:12px;">@L.T("Account")</label>
             <AppSelect Value="@selectedAccountId"
                        ValueChanged="@(v => selectedAccountId = v)"
                        Options="@DebtAccountOptions" />
 
-            <input type="number" @bind="moveAmount" class="input-dark" placeholder="Amount" />
-            <input @bind="moveNote" class="input-dark" placeholder="Note (Optional)" />
+            <input type="number" @bind="moveAmount" class="input-dark" placeholder="@L.T("Amount")" />
+            <input @bind="moveNote" class="input-dark" placeholder="@L.T("NoteOptional")" />
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <AppButton Text="Save"
+                <AppButton Text="@L.T("Save")"
                            LoadingText="Saving..."
                            IsLoading="@isSavingMove"
                            Disabled="@isSavingMove"
                            Style="flex:1;"
                            OnClick="@(async _ => await SaveMove())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
                            OnClick="@(_ => { isMoveModalVisible = false; return Task.CompletedTask; })" />
@@ -244,16 +245,16 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content" style="border:1px solid #e74c3c;">
-            <h3 style="color:#e74c3c;">Delete Person?</h3>
+            <h3 style="color:#e74c3c;">@L.T("DeletePersonQuestion")</h3>
             <p style="color:#ccc; font-size:13px;">
-                Are you sure you want to delete <b>@editingPerson.Name</b>?<br />
-                Current balance: <b style="color:@GetPersonColor(editingPerson)">@GetPersonBalanceDisplay(editingPerson)</b>
+                @L.T("DeletePersonConfirm") <b>@editingPerson.Name</b>?<br />
+                @L.T("CurrentBalance"): <b style="color:@GetPersonColor(editingPerson)">@GetPersonBalanceDisplay(editingPerson)</b>
             </p>
             <div style="display:flex; gap:10px;">
-                <AppButton Text="Delete"
+                <AppButton Text="@L.T("Delete")"
                            Style="background:#e74c3c; color:white; flex:1;"
                            OnClick="@(async _ => await DeletePerson())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
                            OnClick="@(_ => { isDeletePersonConfirmVisible = false; return Task.CompletedTask; })" />
@@ -315,7 +316,7 @@
     string deleteRefundAccountId = "";
 
     IEnumerable<KeyValuePair<string, string>> DebtAccountOptions =>
-        myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, a.Name ?? "Account"));
+        myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, a.Name ?? L.T("Account")));
 
     protected override async Task OnInitializedAsync()
     {
@@ -627,8 +628,8 @@
                 t = new Transaction
                 {
                     Desc = string.IsNullOrEmpty(moveNote)
-                        ? $"From {selectedPerson.Name}"
-                        : $"From {selectedPerson.Name} - {moveNote}",
+                        ? $"{L.T("FromPerson")} {selectedPerson.Name}"
+                        : $"{L.T("FromPerson")} {selectedPerson.Name} - {moveNote}",
                     Category = "Debts",
                     Amount = amount,
                     AmountDisplay = $"+{amount:N2}",
@@ -644,8 +645,8 @@
                 t = new Transaction
                 {
                     Desc = string.IsNullOrEmpty(moveNote)
-                        ? $"To {selectedPerson.Name}"
-                        : $"To {selectedPerson.Name} - {moveNote}",
+                        ? $"{L.T("ToPerson")} {selectedPerson.Name}"
+                        : $"{L.T("ToPerson")} {selectedPerson.Name} - {moveNote}",
                     Category = "Debts",
                     Amount = amount,
                     AmountDisplay = $"-{amount:N2}",
@@ -678,16 +679,16 @@
 
     string GetPersonBalanceDisplay(Person p)
     {
-        if (p.Balance > 0) return $"{p.Balance:N2} remaining";
-        if (p.Balance < 0) return $"{Math.Abs(p.Balance):N2} overpaid";
-        return "0.00 (settled)";
+        if (p.Balance > 0) return $"{p.Balance:N2} {L.T("RemainingBalance")}";
+        if (p.Balance < 0) return $"{Math.Abs(p.Balance):N2} {L.T("Overpaid")}";
+        return $"0.00 ({L.T("Settled")})";
     }
 
     string GetPersonSubtitle(Person p)
     {
-        if (p.Balance > 0) return "Debt remaining";
-        if (p.Balance < 0) return "Overpaid";
-        return "No balance";
+        if (p.Balance > 0) return L.T("DebtRemaining");
+        if (p.Balance < 0) return L.T("Overpaid");
+        return L.T("NoBalance");
     }
 
     string GetPersonColor(Person p)
@@ -703,17 +704,17 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Edit Debt Move</h3>
+            <h3>@L.T("EditDebtMove")</h3>
             <p style="color:gray; font-size:12px; margin-top:0;">
-                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? "They paid you" : "You paid them")
+                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? L.T("TheyPaidYou") : L.T("YouPaidThem"))
             </p>
 
-            <input type="number" @bind="editMoveAmount" class="input-dark" placeholder="Amount" />
-            <input @bind="selectedMove.Note" class="input-dark" placeholder="Note (optional)" />
+            <input type="number" @bind="editMoveAmount" class="input-dark" placeholder="@L.T("Amount")" />
+            <input @bind="selectedMove.Note" class="input-dark" placeholder="@L.T("NoteOptional")" />
 
-            <label style="color:gray; font-size:12px;">Update account (optional)</label>
+            <label style="color:gray; font-size:12px;">@L.T("UpdateAccountOptional")</label>
             <select @bind="editMoveAccountId" class="input-dark">
-                <option value="">Don't change account</option>
+                <option value="">@L.T("DontChangeAccount")</option>
                 @foreach (var acc in myData.Accounts)
                 {
                     <option value="@acc.Id">@acc.Name</option>
@@ -721,8 +722,8 @@
             </select>
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SaveEditMove">Save</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isEditMoveVisible = false">Cancel</button>
+                <button class="btn-primary" style="flex:1;" @onclick="SaveEditMove">@L.T("Save")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isEditMoveVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -733,14 +734,14 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3 style="color:#e74c3c;">Delete Debt Move?</h3>
+            <h3 style="color:#e74c3c;">@L.T("DeleteDebtMoveQuestion")</h3>
             <p style="color:#ccc; font-size:13px;">
-                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? "They paid you" : "You paid them")
+                @selectedMove.PersonName - @(selectedMove.IsFromPerson ? L.T("TheyPaidYou") : L.T("YouPaidThem"))
             </p>
 
-            <label style="color:gray; font-size:12px;">Refund on account (optional)</label>
+            <label style="color:gray; font-size:12px;">@L.T("RefundOnAccountOptional")</label>
             <select @bind="deleteRefundAccountId" class="input-dark">
-                <option value="">Just delete (no account change)</option>
+                <option value="">@L.T("DeleteOnlyNoAccountChange")</option>
                 @foreach (var acc in myData.Accounts)
                 {
                     <option value="@acc.Id">@acc.Name</option>
@@ -748,12 +749,14 @@
             </select>
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteMove">Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteMoveVisible = false">Cancel</button>
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteMove">@L.T("Delete")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteMoveVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
 }
+
+
 
 
 

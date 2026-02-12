@@ -2,15 +2,16 @@
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
+@inject LocalizationService L
 
 <div class="page-section" style="padding-bottom:88px;">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0;">History 📜</h3>
+        <h3 style="margin:0;">@L.T("HistoryTitle")</h3>
     </div>
 
     <div class="card" style="padding:15px; margin-bottom:20px; background:#1f1f1f;">
-        <label style="color:gray; font-size:12px;">Filter by Month</label>
+        <label style="color:gray; font-size:12px;">@L.T("FilterByMonth")</label>
         <input type="month"
                value="@selectedMonthStr"
                @onchange="@(e => selectedMonthStr = e.Value?.ToString() ?? "")"
@@ -21,7 +22,7 @@
     @if (!FilteredTransactions.Any())
     {
         <div style="text-align:center; padding:30px; color:gray;">
-            <p>No transactions found for this month.</p>
+            <p>@L.T("NoTransactionsThisMonth")</p>
         </div>
     }
     else
@@ -48,26 +49,26 @@
 
 @if (isEditVisible)
 {
-    <AppModal Visible="@isEditVisible" Title="Edit Transaction">
+    <AppModal Visible="@isEditVisible" Title="@L.T("EditTransaction")">
         <ChildContent>
             <AppInput Value="@(selectedTrans.Desc ?? string.Empty)"
                       ValueChanged="@(v => selectedTrans.Desc = v)"
-                      Placeholder="Description" />
-            <input type="number" @bind="selectedTrans.Amount" class="input-dark" placeholder="Amount" />
+                      Placeholder="@L.T("Description")" />
+            <input type="number" @bind="selectedTrans.Amount" class="input-dark" placeholder="@L.T("Amount")" />
 
-            <label style="font-size:12px; color:gray;">Update Balance on Account:</label>
+            <label style="font-size:12px; color:gray;">@L.T("UpdateBalanceOnAccount")</label>
             <AppSelect Value="@editAccountId"
                        ValueChanged="@(v => editAccountId = v)"
                        Options="@HistoryEditAccountOptions" />
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <AppButton Text="Save"
+                <AppButton Text="@L.T("Save")"
                            LoadingText="Saving..."
                            IsLoading="@isSavingEdit"
                            Disabled="@isSavingEdit"
                            OnClick="@(async _ => await SaveEdit())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            OnClick="@(_ => { isEditVisible = false; return Task.CompletedTask; })" />
             </div>
@@ -77,23 +78,23 @@
 
 @if (isDeleteModalVisible)
 {
-    <AppModal Visible="@isDeleteModalVisible" Title="Delete Transaction?" Style="border:1px solid #e74c3c;">
+    <AppModal Visible="@isDeleteModalVisible" Title="@L.T("DeleteTransactionTitle")" Style="border:1px solid #e74c3c;">
         <ChildContent>
             <p style="color:#ccc;">@selectedTrans.Desc</p>
-            <label style="color:gray; font-size:12px;">Refund To (Optional):</label>
+            <label style="color:gray; font-size:12px;">@L.T("RefundToOptional")</label>
             <AppSelect Value="@refundAccountId"
                        ValueChanged="@(v => refundAccountId = v)"
                        Options="@HistoryDeleteAccountOptions" />
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <AppButton Text="Delete"
-                           LoadingText="Deleting..."
+                <AppButton Text="@L.T("Delete")"
+                           LoadingText="@L.T("Deleting")"
                            IsLoading="@isDeleting"
                            Disabled="@isDeleting"
                            Style="background:#e74c3c; color:white;"
                            OnClick="@(async _ => await ExecuteDelete())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            OnClick="@(_ => { isDeleteModalVisible = false; return Task.CompletedTask; })" />
             </div>
@@ -120,12 +121,12 @@
     string selectedMonthStr = DateTime.Now.ToString("yyyy-MM");
 
     IEnumerable<KeyValuePair<string, string>> HistoryEditAccountOptions =>
-        new[] { new KeyValuePair<string, string>("", "Don't Change Balance (Text Only)") }
-        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? "Account")));
+        new[] { new KeyValuePair<string, string>("", L.T("DontChangeBalanceTextOnly")) }
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))));
 
     IEnumerable<KeyValuePair<string, string>> HistoryDeleteAccountOptions =>
-        new[] { new KeyValuePair<string, string>("", "Just Delete (No Refund)") }
-        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? "Account")));
+        new[] { new KeyValuePair<string, string>("", L.T("JustDeleteNoRefund")) }
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))));
 
     protected override async Task OnInitializedAsync()
     {

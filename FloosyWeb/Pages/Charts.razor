@@ -1,25 +1,26 @@
 ﻿@page "/charts"
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
+@inject LocalizationService L
 
 <div class="page-section" style="padding-bottom: 88px;">
-    <h3>Analytics 📊</h3>
+    <h3>@L.T("Analytics")</h3>
 
     <div class="kpi-grid">
         <div class="kpi-card">
-            <div class="kpi-label">Income</div>
+            <div class="kpi-label">@L.T("Income")</div>
             <div class="kpi-value" style="color:#2ecc71;">+@CurrentIncome.ToString("N0")</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Expense</div>
+            <div class="kpi-label">@L.T("Expense")</div>
             <div class="kpi-value" style="color:#e74c3c;">-@Math.Abs(CurrentExpense).ToString("N0")</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Net</div>
+            <div class="kpi-label">@L.T("Net")</div>
             <div class="kpi-value" style="color:@(NetAmount >= 0 ? "#2ecc71" : "#e74c3c");">@NetAmount.ToString("N0")</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">vs Prev Month</div>
+            <div class="kpi-label">@L.T("VsPrevMonth")</div>
             <div class="kpi-value" style="color:@(MoMDelta >= 0 ? "#2ecc71" : "#e74c3c");">@MoMDelta.ToString("N0")</div>
         </div>
     </div>
@@ -27,21 +28,21 @@
     <div class="card" style="padding:15px; margin-bottom:15px; background:#1f1f1f;">
 
         <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <AppButton Text="Monthly"
+            <AppButton Text="@L.T("Monthly")"
                        Icon="📅"
                        Style="@MonthlyToggleStyle"
-                       AriaLabel="Switch to monthly analytics"
+                       AriaLabel="@L.T("MonthlyAnalyticsAria")"
                        OnClick="@(_ => { isLifetime = false; return Task.CompletedTask; })" />
-            <AppButton Text="Lifetime"
+            <AppButton Text="@L.T("Lifetime")"
                        Icon="♾️"
                        Style="@LifetimeToggleStyle"
-                       AriaLabel="Switch to lifetime analytics"
+                       AriaLabel="@L.T("LifetimeAnalyticsAria")"
                        OnClick="@(_ => { isLifetime = true; return Task.CompletedTask; })" />
         </div>
 
         @if (!isLifetime)
         {
-            <label style="color:gray; font-size:12px;">Select Month</label>
+            <label style="color:gray; font-size:12px;">@L.T("SelectMonth")</label>
             <input type="month"
                    value="@selectedMonthStr"
                    @onchange="@(e => selectedMonthStr = e.Value?.ToString() ?? "")"
@@ -50,7 +51,7 @@
         }
     </div>
 
-    <div style="margin-bottom:5px; font-size:12px; color:gray;">@(isLifetime ? "Lifetime Total" : "Selected Month")</div>
+    <div style="margin-bottom:5px; font-size:12px; color:gray;">@(isLifetime ? L.T("LifetimeTotal") : L.T("SelectedMonth"))</div>
 
     <div style="background:#333; height:30px; border-radius:15px; overflow:hidden; display:flex; margin-bottom:10px;">
         @if (TotalVolume > 0)
@@ -64,7 +65,7 @@
         }
         else
         {
-            <div style="width:100%; text-align:center; color:gray; line-height:30px;">No Data</div>
+            <div style="width:100%; text-align:center; color:gray; line-height:30px;">@L.T("NoData")</div>
         }
     </div>
 
@@ -74,13 +75,13 @@
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <AppButton Text="Income"
+        <AppButton Text="@L.T("Income")"
                    Style="@IncomeToggleStyle"
-                   AriaLabel="Show income category chart"
+                   AriaLabel="@L.T("ShowIncomeChart")"
                    OnClick="@(_ => { isExpense = false; return Task.CompletedTask; })" />
-        <AppButton Text="Expense"
+        <AppButton Text="@L.T("Expense")"
                    Style="@ExpenseToggleStyle"
-                   AriaLabel="Show expense category chart"
+                   AriaLabel="@L.T("ShowExpenseChart")"
                    OnClick="@(_ => { isExpense = true; return Task.CompletedTask; })" />
     </div>
 
@@ -101,7 +102,7 @@
     }
 
     <div style="margin-top:30px; border-top: 1px solid #333; padding-top: 10px;">
-        <h4 style="margin-bottom:10px; color:#ddd;">History</h4>
+        <h4 style="margin-bottom:10px; color:#ddd;">@L.T("TransactionsHistory")</h4>
         @if (FilteredHistory.Any())
         {
             @foreach (var t in FilteredHistory)
@@ -117,7 +118,7 @@
         }
         else
         {
-            <p style="color:gray;">No transactions found.</p>
+            <p style="color:gray;">@L.T("NoTransactionsFound")</p>
         }
     </div>
 </div>
@@ -185,7 +186,7 @@
             double total = filtered.Sum(x => (double)x.Amount);
             if (total == 0) return new List<ChartItem>();
 
-            return filtered.GroupBy(x => x.Category ?? "Other").Select(g =>
+            return filtered.GroupBy(x => x.Category ?? L.T("Other")).Select(g =>
             {
                 double val = g.Sum(x => (double)x.Amount);
                 return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" };

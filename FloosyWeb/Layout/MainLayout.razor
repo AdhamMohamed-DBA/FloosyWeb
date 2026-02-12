@@ -2,8 +2,9 @@
 @inject NavigationManager Nav
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
+@inject LocalizationService L
 
-<div class="page-shell">
+<div class="page-shell" dir="@(L.IsArabic ? "rtl" : "ltr")" lang="@(L.IsArabic ? "ar" : "en")">
     <main class="page-content">
         @Body
     </main>
@@ -11,13 +12,13 @@
 
 @if (isUpdateNoticeVisible)
 {
-    <AppModal Visible="@isUpdateNoticeVisible" Title="App Updated">
+    <AppModal Visible="@isUpdateNoticeVisible" Title="@L.T("AppUpdated")">
         <ChildContent>
-            <p style="color:#bbb; font-size:12px; margin-top:0;">Version: <b>@activeUpdateVersion</b></p>
-            <p style="color:#fff; white-space:pre-wrap;">@activeUpdateMessage</p>
+            <p style="color:#bbb; font-size:12px; margin-top:0;">@L.T("Version"): <b>@activeUpdateVersion</b></p>
+            <p style="color:#fff; white-space:pre-wrap; text-align:@activeUpdateTextAlign;" dir="@activeUpdateDir">@activeUpdateMessage</p>
         </ChildContent>
         <FooterContent>
-            <AppButton Text="OK"
+            <AppButton Text="@L.T("Ok")"
                        Style="width:100%;"
                        OnClick="@(async _ => await AcknowledgeUpdateNotice())" />
         </FooterContent>
@@ -29,27 +30,27 @@
     <div class="bottom-nav">
         <a href="home" class="nav-item @(IsActive("home") ? "active" : "")" aria-current="@(IsActive("home") ? "page" : null)" aria-label="Go to Home page">
             <img src="images/home.png" class="nav-icon" />
-            <span>Home</span>
+            <span>@L.T("Home")</span>
         </a>
         <a href="bills" class="nav-item @(IsActive("bills") ? "active" : "")" aria-current="@(IsActive("bills") ? "page" : null)" aria-label="Go to Bills page">
             <img src="images/bill.png" class="nav-icon" />
-            <span>Bills</span>
+            <span>@L.T("Bills")</span>
         </a>
         <a href="charts" class="nav-item @(IsActive("charts") ? "active" : "")" aria-current="@(IsActive("charts") ? "page" : null)" aria-label="Go to Charts page">
             <img src="images/chart.png" class="nav-icon" />
-            <span>Charts</span>
+            <span>@L.T("Charts")</span>
         </a>
         <a href="debts" class="nav-item @(IsActive("debts") ? "active" : "")" aria-current="@(IsActive("debts") ? "page" : null)" aria-label="Go to Debts page">
             <img src="images/bill.png" class="nav-icon" />
-            <span>Debts</span>
+            <span>@L.T("Debts")</span>
         </a>
         <a href="history" class="nav-item @(IsActive("history") ? "active" : "")" aria-current="@(IsActive("history") ? "page" : null)" aria-label="Go to History page">
             <img src="images/history.png" class="nav-icon" />
-            <span>History</span>
+            <span>@L.T("History")</span>
         </a>
         <a href="settings" class="nav-item @(IsActive("settings") ? "active" : "")" aria-current="@(IsActive("settings") ? "page" : null)" aria-label="Go to Settings page">
             <img src="images/setting.png" class="nav-icon" />
-            <span>Settings</span>
+            <span>@L.T("Settings")</span>
         </a>
     </div>
 }
@@ -58,6 +59,8 @@
     bool isUpdateNoticeVisible = false;
     string activeUpdateVersion = "";
     string activeUpdateMessage = "";
+    string activeUpdateDir = "ltr";
+    string activeUpdateTextAlign = "left";
 
     bool IsActive(string href)
     {
@@ -69,8 +72,12 @@
     {
         // 🔥 تشغيل الدالة دي هنا آمن عشان الـ JS بيكون حمل
         Firebase.InitUser();
+        L.Init();
+        L.OnChange += HandleLocalizationChanged;
         Nav.LocationChanged += (s, e) => StateHasChanged();
     }
+
+    void HandleLocalizationChanged() => InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -92,6 +99,9 @@
 
         activeUpdateVersion = update.Version;
         activeUpdateMessage = update.Message;
+        var alignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
+        activeUpdateDir = alignment == "rtl" ? "rtl" : "ltr";
+        activeUpdateTextAlign = alignment == "rtl" ? "right" : "left";
         isUpdateNoticeVisible = true;
         await InvokeAsync(StateHasChanged);
     }
@@ -105,5 +115,10 @@
         }
 
         isUpdateNoticeVisible = false;
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= HandleLocalizationChanged;
     }
 }

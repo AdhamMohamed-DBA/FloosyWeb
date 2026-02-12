@@ -29,6 +29,7 @@ public class UpdateBroadcast
 {
     public string Version { get; set; } = "";
     public string Message { get; set; } = "";
+    public string MessageAlignment { get; set; } = "ltr";
     public bool IsRequired { get; set; } = false;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

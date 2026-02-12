@@ -16,4 +16,6 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<FirebaseService>();
 // ------------------------
 
+builder.Services.AddScoped<LocalizationService>();
+
 await builder.Build().RunAsync();

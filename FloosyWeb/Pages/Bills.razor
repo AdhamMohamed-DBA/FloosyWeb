@@ -2,26 +2,27 @@
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
+@inject LocalizationService L
 
 <div class="page-section" style="padding-bottom:88px;" id="billsTop">
 
     <div class="section-header" style="margin-bottom:20px;">
-        <h3 style="margin:0;">Bills 🧾</h3>
-        <AppButton Text="New Month"
+        <h3 style="margin:0;">@L.T("BillsTitle")</h3>
+        <AppButton Text="@L.T("NewMonth")"
                    Icon="🔄"
                    Style="font-size:12px; width:auto; background:#3498db; color:white;"
-                   AriaLabel="Start a new month and reset recurring bills"
+                   AriaLabel="@L.T("NewMonthAria")"
                    OnClick="@(_ => { isResetConfirmVisible = true; return Task.CompletedTask; })" />
     </div>
 
     <div class="card" style="padding:15px; margin-bottom:25px;">
-        <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? "Edit Bill" : "New Bill")</h4>
+        <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? L.T("EditBill") : L.T("NewBill"))</h4>
 
         <AppInput Value="@(currentBill.Name ?? string.Empty)"
                   ValueChanged="@(v => currentBill.Name = v)"
-                  Placeholder="Bill Name"
+                  Placeholder="@L.T("BillName")"
                   AriaLabel="Bill name" />
-        <input type="number" @bind="currentBill.Amount" placeholder="Amount" class="input-dark" aria-label="Bill amount" />
+        <input type="number" @bind="currentBill.Amount" placeholder="@L.T("Amount")" class="input-dark" aria-label="Bill amount" />
 
         <div style="display:flex; gap:5px;">
             <AppSelect Value="@currentBill.Category"
@@ -42,13 +43,13 @@
         <div style="margin-bottom:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
                 <input type="checkbox" @bind="currentBill.IsShared" style="width:18px; height:18px; accent-color:#00E676;" />
-                <span style="color:#ccc;">Shared Bill?</span>
+                <span style="color:#ccc;">@L.T("SharedBill")</span>
             </div>
             @if (currentBill.IsShared)
             {
                 <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                    <input @bind="newParticipantName" class="input-dark" placeholder="Person Name" style="margin-bottom:0;" />
-                    <input type="number" @bind="newParticipantAmount" class="input-dark" placeholder="Amount" style="max-width:120px; margin-bottom:0;" />
+                    <input @bind="newParticipantName" class="input-dark" placeholder="@L.T("PersonName")" style="margin-bottom:0;" />
+                    <input type="number" @bind="newParticipantAmount" class="input-dark" placeholder="@L.T("Amount")" style="max-width:120px; margin-bottom:0;" />
                     <AppButton Text="+"
                                Style="width:auto; min-width:44px; margin-bottom:0;"
                                AriaLabel="Add shared participant"
@@ -77,14 +78,14 @@
                     </div>
 
                     <div style="font-size:12px; color:#aaa;">
-                        Paid: <span style="color:#2ecc71;">@CurrentSharedPaidTotal.ToString("N2")</span>
-                        • Remaining: <span style="color:#ffcc66;">@CurrentSharedRemainingTotal.ToString("N2")</span>
+                        @L.T("Paid"): <span style="color:#2ecc71;">@CurrentSharedPaidTotal.ToString("N2")</span>
+                        • @L.T("Remaining"): <span style="color:#ffcc66;">@CurrentSharedRemainingTotal.ToString("N2")</span>
                     </div>
                 }
             }
         </div>
 
-        <AppButton Text="@(isEditMode ? "Update Bill" : "Add Bill")"
+        <AppButton Text="@(isEditMode ? L.T("UpdateBill") : L.T("AddBill"))"
                    LoadingText="Saving..."
                    IsLoading="@isSavingBill"
                    Disabled="@isSavingBill"
@@ -92,7 +93,7 @@
                    OnClick="@(async _ => await SaveBill())" />
         @if (isEditMode)
         {
-            <AppButton Text="Cancel Edit"
+            <AppButton Text="@L.T("CancelEdit")"
                        Variant="ghost"
                        Style="width:100%; margin-top:5px;"
                        OnClick="@(_ => { CancelEdit(); return Task.CompletedTask; })" />
@@ -112,7 +113,7 @@
                     }
                     @if (bill.IsShared)
                     {
-                        <span class="badge" style="border-color:#3498db; color:#3498db;">Shared</span>
+                        <span class="badge" style="border-color:#3498db; color:#3498db;">@L.T("Shared")</span>
                     }
                 </div>
                 @if (bill.IsShared)
@@ -135,13 +136,13 @@
                             }
 
                             <div style="margin-top:6px; color:#aaa;">
-                                ✅ Paid: @GetParticipantsPaidTotal(bill).ToString("N2") • ⏳ Remaining: @GetParticipantsRemainingTotal(bill).ToString("N2")
+                                ✅ @L.T("Paid"): @GetParticipantsPaidTotal(bill).ToString("N2") • ⏳ @L.T("Remaining"): @GetParticipantsRemainingTotal(bill).ToString("N2")
                             </div>
                         }
                         else
                         {
-                            <div>👥 <b>With:</b> @bill.SharedWith</div>
-                            <div>📝 <b>Status:</b> @bill.Notes</div>
+                            <div>👥 <b>@L.T("With")</b> @bill.SharedWith</div>
+                            <div>📝 <b>@L.T("Status")</b> @bill.Notes</div>
                         }
                     </div>
                 }
@@ -151,7 +152,7 @@
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     @if (!bill.IsPaid)
                     {
-                        <AppButton Text="Pay"
+                        <AppButton Text="@L.T("Pay")"
                                    Style="width:auto; margin-bottom:0; padding:5px 15px; background:#ff9800; color:black; border-radius:5px;"
                                    OnClick="@(_ => { InitiatePayBill(bill); return Task.CompletedTask; })" />
                     }
@@ -170,7 +171,7 @@
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
         </ChildContent>
         <FooterContent>
-            <AppButton Text="OK"
+            <AppButton Text="@L.T("Ok")"
                        Style="padding:10px;"
                        OnClick="@(_ => { isMessageVisible = false; return Task.CompletedTask; })" />
         </FooterContent>
@@ -181,15 +182,15 @@
 {
     <AppModal Visible="@isDeleteBillConfirmVisible" Style="text-align:center;">
         <ChildContent>
-            <h3 style="color:#e74c3c;">Delete Bill?</h3>
-            <p style="color:#ccc;">Delete <b>@billToDelete?.Name</b>?</p>
+            <h3 style="color:#e74c3c;">@L.T("DeleteBillQuestion")</h3>
+            <p style="color:#ccc;">@L.T("Delete") <b>@billToDelete?.Name</b>?</p>
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px;">
-                <AppButton Text="Delete"
+                <AppButton Text="@L.T("Delete")"
                            Style="background:#e74c3c; color:white; flex:1;"
                            OnClick="@(async _ => await ExecuteDeleteBill())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
                            OnClick="@(_ => { isDeleteBillConfirmVisible = false; return Task.CompletedTask; })" />
@@ -202,15 +203,15 @@
 {
     <AppModal Visible="@isResetConfirmVisible" Style="text-align:center;">
         <ChildContent>
-            <h3 style="color:#3498db;">New Month?</h3>
-            <p style="color:#ccc;">Start new month? Mark recurring bills as unpaid?</p>
+            <h3 style="color:#3498db;">@L.T("NewMonthQuestion")</h3>
+            <p style="color:#ccc;">@L.T("NewMonthConfirm")</p>
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px;">
-                <AppButton Text="Yes"
+                <AppButton Text="@L.T("Yes")"
                            Style="background:#3498db; color:white; flex:1;"
                            OnClick="@(async _ => await ExecuteResetMonthly())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
                            OnClick="@(_ => { isResetConfirmVisible = false; return Task.CompletedTask; })" />
@@ -221,10 +222,10 @@
 
 @if (isManageCatsVisible)
 {
-    <AppModal Visible="@isManageCatsVisible" Title="Manage Categories" Style="z-index:2100;">
+    <AppModal Visible="@isManageCatsVisible" Title="@L.T("ManageCategories")" Style="z-index:2100;">
         <ChildContent>
             <div style="display:flex; gap:5px; margin-bottom:15px;">
-                <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
+                <input @bind="newCatName" class="input-dark" placeholder="@L.T("NewCategory")" style="margin-bottom:0;" />
                 <AppButton Text="+"
                            Style="width:auto;"
                            AriaLabel="Add category"
@@ -241,7 +242,7 @@
             </div>
         </ChildContent>
         <FooterContent>
-            <AppButton Text="Close"
+            <AppButton Text="@L.T("Close")"
                        Variant="ghost"
                        Style="width:100%; margin-top:10px;"
                        OnClick="@(_ => { isManageCatsVisible = false; return Task.CompletedTask; })" />
@@ -251,22 +252,22 @@
 
 @if (isPayModalVisible)
 {
-    <AppModal Visible="@isPayModalVisible" Title="Pay Bill">
+    <AppModal Visible="@isPayModalVisible" Title="@L.T("PayBill")">
         <ChildContent>
             <p>@selectedBillToPay?.Name - @selectedBillToPay?.Amount.ToString("N2")</p>
-            <label>From Account:</label>
+            <label>@L.T("FromAccount")</label>
             <AppSelect Value="@payFromAccountId"
                        ValueChanged="@(v => payFromAccountId = v)"
                        Options="@PayAccountOptions" />
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <AppButton Text="Pay"
-                           LoadingText="Processing..."
+                <AppButton Text="@L.T("Pay")"
+                           LoadingText="@L.T("Processing")"
                            IsLoading="@isPayingBill"
                            Disabled="@isPayingBill"
                            OnClick="@(async _ => await ConfirmPayBill())" />
-                <AppButton Text="Cancel"
+                <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            OnClick="@(_ => { isPayModalVisible = false; return Task.CompletedTask; })" />
             </div>
@@ -305,8 +306,13 @@
         myData.BillCategories.Select(c => new KeyValuePair<string, string>(c, c));
 
     IEnumerable<KeyValuePair<string, string>> FrequencyOptions =>
-        new[] { "OneTime", "Monthly", "Quarterly", "Yearly" }
-            .Select(f => new KeyValuePair<string, string>(f, f));
+        new[]
+        {
+            new KeyValuePair<string, string>("OneTime", L.IsArabic ? "مرة واحدة" : "OneTime"),
+            new KeyValuePair<string, string>("Monthly", L.T("Monthly")),
+            new KeyValuePair<string, string>("Quarterly", L.IsArabic ? "ربع سنوي" : "Quarterly"),
+            new KeyValuePair<string, string>("Yearly", L.IsArabic ? "سنوي" : "Yearly")
+        };
 
     IEnumerable<KeyValuePair<string, string>> PayAccountOptions =>
         myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, $"{a.Name} ({a.Balance:N0})"));
@@ -314,7 +320,7 @@
     protected override async Task OnInitializedAsync()
     {
         myData = await Firebase.Load();
-        if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other");
+        if (!myData.BillCategories.Any()) myData.BillCategories.Add(L.T("Other"));
 
         foreach (var b in myData.Bills)
         {
@@ -366,7 +372,7 @@
         bill.SharedWith = string.Join(", ", names);
 
         var paidNames = bill.Participants.Where(x => x.IsPaid).Select(x => x.Name).Where(x => !string.IsNullOrWhiteSpace(x));
-        bill.Notes = paidNames.Any() ? $"Paid: {string.Join(", ", paidNames)}" : "No one paid yet";
+        bill.Notes = paidNames.Any() ? $"{L.T("Paid")}: {string.Join(", ", paidNames)}" : (L.IsArabic ? "لا أحد دفع بعد" : "No one paid yet");
     }
 
     decimal CurrentSharedPaidTotal => currentBill.Participants.Where(x => x.IsPaid).Sum(x => x.Amount);
@@ -465,8 +471,8 @@
                 if (acc.Balance < selectedBillToPay.Amount)
                 {
                     // 🔥 Replaced Alert with Custom Modal
-                    messageTitle = "Error";
-                    messageBody = "Insufficient balance!";
+                    messageTitle = L.T("Error");
+                    messageBody = L.T("InsufficientBalance");
                     isMessageVisible = true;
                     return;
                 }

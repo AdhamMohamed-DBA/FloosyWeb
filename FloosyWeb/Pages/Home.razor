@@ -3,27 +3,28 @@
 @inject FirebaseService Firebase
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject LocalizationService L
 
 <div class="page-section home-page">
 
     <div class="section-heading">
-        <h3 style="margin:0;">Welcome, @Firebase.GetUserName()! 👋</h3>
+        <h3 style="margin:0;">@L.T("Welcome"), @Firebase.GetUserName()! 👋</h3>
     </div>
 
     <div class="card balance-card" style="text-align:center;">
-        <p style="color:gray; margin:0; font-size: 14px;">Total Balance</p>
+        <p style="color:gray; margin:0; font-size: 14px;">@L.T("TotalBalance")</p>
         <h1 style="color:#00E676; margin:5px; font-size: 40px;">@TotalBalance.ToString("N2")</h1>
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:25px;">
-        <button class="btn-primary" style="background-color:#2ecc71;" @onclick="() => ShowTransactionModal(true)">+ In</button>
-        <button class="btn-primary" style="background-color:#e74c3c;" @onclick="() => ShowTransactionModal(false)">- Out</button>
-        <button class="btn-primary" style="background-color:#3498db;" @onclick="ShowTransferModal">Transfer</button>
+        <button class="btn-primary" style="background-color:#2ecc71;" @onclick="() => ShowTransactionModal(true)">+ @L.T("In")</button>
+        <button class="btn-primary" style="background-color:#e74c3c;" @onclick="() => ShowTransactionModal(false)">- @L.T("Out")</button>
+        <button class="btn-primary" style="background-color:#3498db;" @onclick="ShowTransferModal">@L.T("Transfer")</button>
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; width:100%;">
-        <h3 style="margin:0;">My Accounts</h3>
-        <button class="btn-trans btn-auto" style="color:#00E676; font-weight:bold; font-size:16px; padding: 5px 10px; margin:0;" @onclick="ShowAddAccountModal" aria-label="Add a new account">+ Add</button>
+        <h3 style="margin:0;">@L.T("MyAccounts")</h3>
+        <button class="btn-trans btn-auto" style="color:#00E676; font-weight:bold; font-size:16px; padding: 5px 10px; margin:0;" @onclick="ShowAddAccountModal" aria-label="Add a new account">+ @L.T("Add")</button>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:10px;">
@@ -38,12 +39,12 @@
     </div>
 
     <div style="margin-top:30px; margin-bottom:10px;">
-        <h3 style="margin:0;">Recent Activity</h3>
+        <h3 style="margin:0;">@L.T("RecentActivity")</h3>
     </div>
 
     @if (!myData.History.Any())
     {
-        <p style="text-align:center; color:gray; font-size:12px;">No recent transactions.</p>
+        <p style="text-align:center; color:gray; font-size:12px;">@L.T("NoRecentTransactions")</p>
     }
     else
     {
@@ -70,14 +71,14 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>New Account 🏦</h3>
-            <input @bind="newAccName" class="input-dark" placeholder="Account Name" />
-            <input type="number" @bind="newAccBalance" class="input-dark" placeholder="Initial Balance" />
-            <label style="color:gray; font-size:12px;">Pick Color</label>
+            <h3>@L.T("NewAccount") 🏦</h3>
+            <input @bind="newAccName" class="input-dark" placeholder="@L.T("AccountName")" />
+            <input type="number" @bind="newAccBalance" class="input-dark" placeholder="@L.T("InitialBalance")" />
+            <label style="color:gray; font-size:12px;">@L.T("PickColor")</label>
             <input type="color" @bind="newAccColor" style="width:100%; height:40px; border:none; border-radius:8px; cursor:pointer;" />
             <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn-primary" @onclick="SaveNewAccount" style="flex:1;">Create</button>
-                <button class="btn-trans" @onclick="() => isAddAccModalVisible = false" style="flex:1;">Cancel</button>
+                <button class="btn-primary" @onclick="SaveNewAccount" style="flex:1;">@L.T("Create")</button>
+                <button class="btn-trans" @onclick="() => isAddAccModalVisible = false" style="flex:1;">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -89,17 +90,17 @@
         <div class="modal-content" @onclick:stopPropagation="true">
             <h3>@(selectedAccount?.Name ?? "Account")</h3>
             <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <button class="btn-primary" style="background:#333; flex:1;" @onclick="() => MoveAccount(-1)">⬆️ Up</button>
-                <button class="btn-primary" style="background:#333; flex:1;" @onclick="() => MoveAccount(1)">⬇️ Down</button>
+                <button class="btn-primary" style="background:#333; flex:1;" @onclick="() => MoveAccount(-1)">⬆️ @L.T("Up")</button>
+                <button class="btn-primary" style="background:#333; flex:1;" @onclick="() => MoveAccount(1)">⬇️ @L.T("Down")</button>
             </div>
-            <button class="btn-option" @onclick="PrepareEditBalance">💰 Edit Balance</button>
-            <button class="btn-option" @onclick="PrepareEditName">✏️ Rename</button>
+            <button class="btn-option" @onclick="PrepareEditBalance">💰 @L.T("EditBalance")</button>
+            <button class="btn-option" @onclick="PrepareEditName">✏️ @L.T("Rename")</button>
             <div style="padding:15px; border-bottom:1px solid #333;">
-                <label style="font-size:12px; color:gray;">Change Color:</label>
+                <label style="font-size:12px; color:gray;">@L.T("ChangeColor")</label>
                 <input type="color" @bind="selectedAccount!.ColorHex" @oninput="async (e) => { if (selectedAccount != null && e.Value != null) { selectedAccount.ColorHex = (string)e.Value; await Firebase.Save(myData); } }" style="width:100%; height:30px; border:none; cursor:pointer;" />
             </div>
-            <button class="btn-option" style="color:#e74c3c;" @onclick="() => isDeleteAccConfirmVisible = true">🗑️ Delete Account</button>
-            <button class="btn-trans" style="margin-top:10px;" @onclick="() => isAccOptionsVisible = false">Close</button>
+            <button class="btn-option" style="color:#e74c3c;" @onclick="() => isDeleteAccConfirmVisible = true">🗑️ @L.T("DeleteAccount")</button>
+            <button class="btn-trans" style="margin-top:10px;" @onclick="() => isAccOptionsVisible = false">@L.T("Close")</button>
         </div>
     </div>
 }
@@ -108,11 +109,11 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Rename Account</h3>
-            <input @bind="editNameValue" class="input-dark" placeholder="New Name" />
+            <h3>@L.T("RenameAccount")</h3>
+            <input @bind="editNameValue" class="input-dark" placeholder="@L.T("NewName")" />
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SaveAccountName">Save</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isRenameModalVisible = false">Cancel</button>
+                <button class="btn-primary" style="flex:1;" @onclick="SaveAccountName">@L.T("Save")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isRenameModalVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -122,11 +123,11 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Edit Balance</h3>
+            <h3>@L.T("EditBalance")</h3>
             <input type="number" @bind="editBalanceValue" class="input-dark" />
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SaveAccountBalance">Save</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isBalanceModalVisible = false">Cancel</button>
+                <button class="btn-primary" style="flex:1;" @onclick="SaveAccountBalance">@L.T("Save")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isBalanceModalVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -136,11 +137,11 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content" style="border:1px solid #e74c3c;">
-            <h3 style="color:#e74c3c;">Delete Account?</h3>
-            <p style="color:#ccc;">Are you sure you want to delete <b>@selectedAccount?.Name</b>?</p>
+            <h3 style="color:#e74c3c;">@L.T("DeleteAccountQuestion")</h3>
+            <p style="color:#ccc;">@L.T("DeleteAccountConfirm") <b>@selectedAccount?.Name</b>?</p>
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteAccount">Yes, Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteAccConfirmVisible = false">Cancel</button>
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteAccount">@L.T("YesDelete")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteAccConfirmVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -150,8 +151,8 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3 style="margin-top:0;">@(isIncome ? "New Income" : "New Expense")</h3>
-            <label style="color:gray; font-size:12px;">Date</label>
+            <h3 style="margin-top:0;">@(isIncome ? L.T("NewIncome") : L.T("NewExpense"))</h3>
+            <label style="color:gray; font-size:12px;">@L.T("Date")</label>
             <input type="date" @bind="transDate" class="input-dark" />
             <select @bind="selectedAccountId" class="input-dark">
                 @foreach (var a in myData.Accounts)
@@ -159,7 +160,7 @@
                     <option value="@a.Id">@a.Name</option>
                 }
             </select>
-            <input type="number" @bind="transAmount" class="input-dark" placeholder="Amount" />
+            <input type="number" @bind="transAmount" class="input-dark" placeholder="@L.T("Amount")" />
             <div style="display:flex; gap:5px;">
                 <select @bind="selectedCategory" class="input-dark" style="flex:1;">
                     @foreach (var c in (isIncome ? myData.IncomeCategories : myData.ExpenseCategories))
@@ -169,10 +170,10 @@
                 </select>
                 <button class="icon-btn" style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true" aria-label="Manage categories" title="Manage categories">⚙️</button>
             </div>
-            <input @bind="transDesc" class="input-dark" placeholder="Description (Optional)" />
+            <input @bind="transDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" @onclick="SaveTransaction" style="flex:1;">Save</button>
-                <button class="btn-trans" @onclick="() => isTransModalVisible = false" style="flex:1;">Cancel</button>
+                <button class="btn-primary" @onclick="SaveTransaction" style="flex:1;">@L.T("Save")</button>
+                <button class="btn-trans" @onclick="() => isTransModalVisible = false" style="flex:1;">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -182,9 +183,9 @@
 {
     <div class="modal-backdrop" style="z-index:2100;">
         <div class="modal-content">
-            <h3>Manage Categories</h3>
+            <h3>@L.T("ManageCategories")</h3>
             <div style="display:flex; gap:5px; margin-bottom:15px;">
-                <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
+                <input @bind="newCatName" class="input-dark" placeholder="@L.T("NewCategory")" style="margin-bottom:0;" />
                 <button class="btn-primary btn-auto" style="width:auto;" @onclick="AddCategory">+</button>
             </div>
             <div style="max-height:200px; overflow-y:auto;">
@@ -196,7 +197,7 @@
                     </div>
                 }
             </div>
-            <button class="btn-trans" style="margin-top:10px;" @onclick="() => isManageCatsVisible = false">Close</button>
+            <button class="btn-trans" style="margin-top:10px;" @onclick="() => isManageCatsVisible = false">@L.T("Close")</button>
         </div>
     </div>
 }
@@ -205,18 +206,18 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Delete Transaction?</h3>
+            <h3>@L.T("DeleteTransactionQuestion")</h3>
             <p style="color:gray;">@selectedTrans.Desc (@selectedTrans.AmountDisplay)</p>
             <select @bind="refundAccountId" class="input-dark">
-                <option value="">Don't Change Balance</option>
+                <option value="">@L.T("DontChangeBalance")</option>
                 @foreach (var acc in myData.Accounts)
                 {
-                    <option value="@acc.Id">@(isIncomeTrans ? "Deduct from: " : "Refund to: ") @acc.Name</option>
+                    <option value="@acc.Id">@(isIncomeTrans ? L.T("DeductFrom") : L.T("RefundTo")) @acc.Name</option>
                 }
             </select>
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDelete">Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteModalVisible = false">Cancel</button>
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDelete">@L.T("Delete")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteModalVisible = false">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -226,26 +227,26 @@
 {
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h3>Transfer</h3>
-            <label style="color:gray; font-size:12px;">Date</label>
+            <h3>@L.T("Transfer")</h3>
+            <label style="color:gray; font-size:12px;">@L.T("Date")</label>
             <input type="date" @bind="transDate" class="input-dark" />
             <select @bind="transferFromId" class="input-dark">
                 @foreach (var a in myData.Accounts)
                 {
-                    <option value="@a.Id">From: @a.Name</option>
+                    <option value="@a.Id">@L.T("From") @a.Name</option>
                 }
             </select>
             <select @bind="transferToId" class="input-dark">
                 @foreach (var a in myData.Accounts.Where(x => x.Id != transferFromId))
                 {
-                    <option value="@a.Id">To: @a.Name</option>
+                    <option value="@a.Id">@L.T("To") @a.Name</option>
                 }
             </select>
-            <input type="number" @bind="transferAmount" class="input-dark" placeholder="Amount" />
-            <input @bind="transDesc" class="input-dark" placeholder="Description (Optional)" />
+            <input type="number" @bind="transferAmount" class="input-dark" placeholder="@L.T("Amount")" />
+            <input @bind="transDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" @onclick="SaveTransfer" style="flex:1;">Confirm</button>
-                <button class="btn-trans" @onclick="() => isTransferModalVisible = false" style="flex:1;">Cancel</button>
+                <button class="btn-primary" @onclick="SaveTransfer" style="flex:1;">@L.T("Confirm")</button>
+                <button class="btn-trans" @onclick="() => isTransferModalVisible = false" style="flex:1;">@L.T("Cancel")</button>
             </div>
         </div>
     </div>
@@ -389,8 +390,8 @@
 
     void InitCats()
     {
-        if (!myData.IncomeCategories.Any()) myData.IncomeCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Salary", "Bonus" };
-        if (!myData.ExpenseCategories.Any()) myData.ExpenseCategories = new System.Collections.ObjectModel.ObservableCollection<string> { "Food", "Transport" };
+        if (!myData.IncomeCategories.Any()) myData.IncomeCategories = new System.Collections.ObjectModel.ObservableCollection<string> { L.IsArabic ? "راتب" : "Salary", L.IsArabic ? "مكافأة" : "Bonus" };
+        if (!myData.ExpenseCategories.Any()) myData.ExpenseCategories = new System.Collections.ObjectModel.ObservableCollection<string> { L.IsArabic ? "طعام" : "Food", L.IsArabic ? "مواصلات" : "Transport" };
     }
 
     void ShowAddAccountModal() { newAccName = ""; newAccBalance = 0; newAccColor = "#00E676"; isAddAccModalVisible = true; }
@@ -480,7 +481,7 @@
     {
         isIncome = inc; transAmount = 0; transDesc = ""; transDate = DateTime.Now; isTransModalVisible = true;
         var defaultCat = isIncome ? myData.IncomeCategories.FirstOrDefault() : myData.ExpenseCategories.FirstOrDefault();
-        selectedCategory = defaultCat ?? "Other";
+        selectedCategory = defaultCat ?? L.T("Other");
     }
 
     async Task SaveTransaction()
