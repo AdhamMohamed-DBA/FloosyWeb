@@ -101,61 +101,6 @@
     </AppModal>
 }
 
-<style>
-    .btn-trans {
-        background: transparent;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-        color: #888;
-    }
-
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 2000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-content {
-        width: 85%;
-        max-width: 350px;
-        background: #1f1f1f;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #333;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-
-    .input-dark {
-        width: 100%;
-        background: #333;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        box-sizing: border-box;
-    }
-
-    .btn-primary {
-        background-color: #00E676;
-        color: black;
-        border: none;
-        padding: 10px;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        flex: 1;
-    }
-</style>
-
 @code {
     AppData myData = new AppData();
     Transaction selectedTrans = new Transaction();

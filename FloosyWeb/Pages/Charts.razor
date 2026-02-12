@@ -27,8 +27,16 @@
     <div class="card" style="padding:15px; margin-bottom:15px; background:#1f1f1f;">
 
         <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#333" : "#00E676"); color:@(isLifetime ? "white" : "black")" @onclick="() => isLifetime = false" aria-label="Switch to monthly analytics">📅 Monthly</button>
-            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#00E676" : "#333"); color:@(isLifetime ? "black" : "white")" @onclick="() => isLifetime = true" aria-label="Switch to lifetime analytics">♾️ Lifetime</button>
+            <AppButton Text="Monthly"
+                       Icon="📅"
+                       Style="@MonthlyToggleStyle"
+                       AriaLabel="Switch to monthly analytics"
+                       OnClick="@(_ => { isLifetime = false; return Task.CompletedTask; })" />
+            <AppButton Text="Lifetime"
+                       Icon="♾️"
+                       Style="@LifetimeToggleStyle"
+                       AriaLabel="Switch to lifetime analytics"
+                       OnClick="@(_ => { isLifetime = true; return Task.CompletedTask; })" />
         </div>
 
         @if (!isLifetime)
@@ -66,8 +74,14 @@
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false" aria-label="Show income category chart">Income</button>
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true" aria-label="Show expense category chart">Expense</button>
+        <AppButton Text="Income"
+                   Style="@IncomeToggleStyle"
+                   AriaLabel="Show income category chart"
+                   OnClick="@(_ => { isExpense = false; return Task.CompletedTask; })" />
+        <AppButton Text="Expense"
+                   Style="@ExpenseToggleStyle"
+                   AriaLabel="Show expense category chart"
+                   OnClick="@(_ => { isExpense = true; return Task.CompletedTask; })" />
     </div>
 
     @if (ChartData.Any())
@@ -151,6 +165,11 @@
     }
 
     decimal MoMDelta => isLifetime ? 0 : NetAmount - PrevMonthNet;
+
+    string MonthlyToggleStyle => $"flex:1; background-color:{(isLifetime ? "#333" : "#00E676")}; color:{(isLifetime ? "white" : "black")}";
+    string LifetimeToggleStyle => $"flex:1; background-color:{(isLifetime ? "#00E676" : "#333")}; color:{(isLifetime ? "black" : "white")}";
+    string IncomeToggleStyle => $"flex:1; background-color:{(isExpense ? "#333" : "#2ecc71")}; color:{(isExpense ? "white" : "black")}";
+    string ExpenseToggleStyle => $"flex:1; background-color:{(isExpense ? "#e74c3c" : "#333")}; color:white;";
 
     double IncomePct => TotalVolume == 0 ? 0 : (double)(CurrentIncome / TotalVolume) * 100;
     double ExpensePct => TotalVolume == 0 ? 0 : (double)(Math.Abs(CurrentExpense) / TotalVolume) * 100;

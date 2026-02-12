@@ -8,9 +8,9 @@
         <div style="display:flex; align-items:center; gap:8px;">
             <h3 style="margin:0;">Debts 💵</h3>
         </div>
-        <button class="btn-primary" style="padding:6px 14px; font-size:13px; border-radius:999px; width:auto;" @onclick="ShowAddPerson">
-            + Add Contact
-        </button>
+        <AppButton Text="+ Add Contact"
+                   Style="padding:6px 14px; font-size:13px; border-radius:999px; width:auto;"
+                   OnClick="@(_ => { ShowAddPerson(); return Task.CompletedTask; })" />
     </div>
 
     @if (!PeopleList.Any())
@@ -143,9 +143,10 @@
 
             @if (editingPerson != null)
             {
-                <button class="btn-trans" style="margin-top:10px; color:#e74c3c;" @onclick="ConfirmDeletePerson">
-                    Delete Contact
-                </button>
+                <AppButton Text="Delete Contact"
+                           Variant="ghost"
+                           Style="margin-top:10px; color:#e74c3c;"
+                           OnClick="@(_ => { ConfirmDeletePerson(); return Task.CompletedTask; })" />
             }
         </div>
     </div>
@@ -215,19 +216,24 @@
             <input type="date" @bind="moveDate" class="input-dark" />
 
             <label style="color:gray; font-size:12px;">Account</label>
-            <select @bind="selectedAccountId" class="input-dark">
-                @foreach (var a in myData.Accounts)
-                {
-                    <option value="@a.Id">@a.Name</option>
-                }
-            </select>
+            <AppSelect Value="@selectedAccountId"
+                       ValueChanged="@(v => selectedAccountId = v)"
+                       Options="@DebtAccountOptions" />
 
             <input type="number" @bind="moveAmount" class="input-dark" placeholder="Amount" />
             <input @bind="moveNote" class="input-dark" placeholder="Note (Optional)" />
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SaveMove" disabled="@isSavingMove">@(isSavingMove ? "Saving..." : "Save")</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isMoveModalVisible = false">Cancel</button>
+                <AppButton Text="Save"
+                           LoadingText="Saving..."
+                           IsLoading="@isSavingMove"
+                           Disabled="@isSavingMove"
+                           Style="flex:1;"
+                           OnClick="@(async _ => await SaveMove())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="flex:1;"
+                           OnClick="@(_ => { isMoveModalVisible = false; return Task.CompletedTask; })" />
             </div>
         </div>
     </div>
@@ -244,66 +250,17 @@
                 Current balance: <b style="color:@GetPersonColor(editingPerson)">@GetPersonBalanceDisplay(editingPerson)</b>
             </p>
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="DeletePerson">Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeletePersonConfirmVisible = false">Cancel</button>
+                <AppButton Text="Delete"
+                           Style="background:#e74c3c; color:white; flex:1;"
+                           OnClick="@(async _ => await DeletePerson())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="flex:1;"
+                           OnClick="@(_ => { isDeletePersonConfirmVisible = false; return Task.CompletedTask; })" />
             </div>
         </div>
     </div>
 }
-
-<style>
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 2000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-content {
-        width: 85%;
-        max-width: 350px;
-        background: #1f1f1f;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #333;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-
-    .input-dark {
-        width: 100%;
-        background: #333;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        box-sizing: border-box;
-    }
-
-    .btn-primary {
-        background-color: #00E676;
-        color: black;
-        border: none;
-        padding: 10px;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .btn-trans {
-        background: transparent;
-        color: gray;
-        border: none;
-        padding: 10px;
-        cursor: pointer;
-    }
-</style>
 
 @code {
     AppData myData = new();
@@ -356,6 +313,9 @@
     decimal oldMoveAmount;
     string editMoveAccountId = "";
     string deleteRefundAccountId = "";
+
+    IEnumerable<KeyValuePair<string, string>> DebtAccountOptions =>
+        myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, a.Name ?? "Account"));
 
     protected override async Task OnInitializedAsync()
     {
@@ -784,6 +744,7 @@
         </div>
     </div>
 }
+
 
 
 

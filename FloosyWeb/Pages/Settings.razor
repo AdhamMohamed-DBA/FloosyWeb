@@ -55,7 +55,12 @@
         <label>Start of Month (Salary Day)</label>
         <div class="input-stack">
             <input type="number" min="1" max="28" @bind="financialDay" class="input-dark" placeholder="e.g. 25" style="text-align:center;" />
-            <button class="btn-small full-width" @onclick="UpdateFinancialDay" disabled="@isSavingFinancialDay">@(isSavingFinancialDay ? "Saving..." : "Save")</button>
+            <AppButton Text="Save"
+                       LoadingText="Saving..."
+                       IsLoading="@isSavingFinancialDay"
+                       Disabled="@isSavingFinancialDay"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await UpdateFinancialDay())" />
         </div>
         <p style="color:gray; font-size:10px; margin-top:5px;">
             Example: If set to 25, transactions from Feb 25th will appear in March charts.
@@ -109,128 +114,41 @@
 
 @if (isMessageVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content" style="text-align:center;">
+    <AppModal Visible="@isMessageVisible" Style="text-align:center;">
+        <ChildContent>
             <h3 style="margin-top:0; color:@(messageType == "Success" ? "#00E676" : "#e74c3c");">@messageTitle</h3>
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
+        </ChildContent>
+        <FooterContent>
             <AppButton Text="OK"
                        Style="width:100%;"
                        OnClick="@(_ => { isMessageVisible = false; return Task.CompletedTask; })" />
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isDeleteConfirmVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content" style="text-align:center; border: 1px solid #e74c3c;">
+    <AppModal Visible="@isDeleteConfirmVisible" Style="text-align:center; border: 1px solid #e74c3c;">
+        <ChildContent>
             <h3 style="margin-top:0; color:#e74c3c;">Delete Account?</h3>
             <p style="color:#ccc; margin-bottom:15px; font-size:14px;">This action cannot be undone. All your data will be lost.</p>
 
             <input @bind="deletePassInput" type="password" class="input-dark" placeholder="Confirm Password" style="margin-bottom:15px;" />
-
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px;">
-                <button class="btn-small full-width" style="background:#e74c3c; color:white;" @onclick="DoDeleteAccount">Yes, Delete</button>
-                <button class="btn-small full-width" style="background:#333; color:white;" @onclick="() => isDeleteConfirmVisible = false">Cancel</button>
+                <AppButton Text="Yes, Delete"
+                           Style="background:#e74c3c; color:white;"
+                           OnClick="@(async _ => await DoDeleteAccount())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="background:#333; color:white;"
+                           OnClick="@(_ => { isDeleteConfirmVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
-
-<style>
-    .setting-card {
-        background: #1f1f1f;
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 15px;
-        border: 1px solid #333;
-    }
-
-        .setting-card label {
-            display: block;
-            color: #00E676;
-            font-size: 12px;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-    .input-stack {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-    }
-
-    .input-dark {
-        width: 100%;
-        background: #333;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        box-sizing: border-box;
-    }
-
-    .btn-small.full-width {
-        width: 100%;
-        background: #00E676;
-        color: black;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .btn-whatsapp {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        background: #25D366;
-        color: white;
-        text-decoration: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        display: block;
-        text-align: center;
-    }
-
-    .btn-logout {
-        width: 100%;
-        background: transparent;
-        border: 1px solid #e74c3c;
-        color: #e74c3c;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 2000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-content {
-        width: 85%;
-        max-width: 300px;
-        background: #1f1f1f;
-        padding: 25px 20px;
-        border-radius: 15px;
-        border: 1px solid #333;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-</style>
 
 @code {
     AppData myData = new AppData();

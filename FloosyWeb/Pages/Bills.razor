@@ -59,7 +59,10 @@
                    OnClick="@(async _ => await SaveBill())" />
         @if (isEditMode)
         {
-            <button class="btn-trans" style="width:100%; margin-top:5px;" @onclick="CancelEdit">Cancel Edit</button>
+            <AppButton Text="Cancel Edit"
+                       Variant="ghost"
+                       Style="width:100%; margin-top:5px;"
+                       OnClick="@(_ => { CancelEdit(); return Task.CompletedTask; })" />
         }
     </div>
 
@@ -92,7 +95,9 @@
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     @if (!bill.IsPaid)
                     {
-                        <button class="btn-pay" @onclick="() => InitiatePayBill(bill)">Pay</button>
+                        <AppButton Text="Pay"
+                                   Style="width:auto; margin-bottom:0; padding:5px 15px; background:#ff9800; color:black; border-radius:5px;"
+                                   OnClick="@(_ => { InitiatePayBill(bill); return Task.CompletedTask; })" />
                     }
                     <button class="icon-btn" style="font-size:16px;" @onclick="() => ConfirmDeleteBill(bill)" aria-label="Delete bill" title="Delete bill">🗑️</button>
                 </div>
@@ -103,51 +108,71 @@
 
 @if (isMessageVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content" style="text-align:center;">
+    <AppModal Visible="@isMessageVisible" Style="text-align:center;">
+        <ChildContent>
             <h3 style="margin-top:0; color:#e74c3c;">@messageTitle</h3>
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
-            <button class="btn-primary" style="padding:10px;" @onclick="() => isMessageVisible = false">OK</button>
-        </div>
-    </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Text="OK"
+                       Style="padding:10px;"
+                       OnClick="@(_ => { isMessageVisible = false; return Task.CompletedTask; })" />
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isDeleteBillConfirmVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content" style="text-align:center;">
+    <AppModal Visible="@isDeleteBillConfirmVisible" Style="text-align:center;">
+        <ChildContent>
             <h3 style="color:#e74c3c;">Delete Bill?</h3>
             <p style="color:#ccc;">Delete <b>@billToDelete?.Name</b>?</p>
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteBill">Delete</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteBillConfirmVisible = false">Cancel</button>
+                <AppButton Text="Delete"
+                           Style="background:#e74c3c; color:white; flex:1;"
+                           OnClick="@(async _ => await ExecuteDeleteBill())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="flex:1;"
+                           OnClick="@(_ => { isDeleteBillConfirmVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isResetConfirmVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content" style="text-align:center;">
+    <AppModal Visible="@isResetConfirmVisible" Style="text-align:center;">
+        <ChildContent>
             <h3 style="color:#3498db;">New Month?</h3>
             <p style="color:#ccc;">Start new month? Mark recurring bills as unpaid?</p>
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px;">
-                <button class="btn-primary" style="background:#3498db; flex:1;" @onclick="ExecuteResetMonthly">Yes</button>
-                <button class="btn-trans" style="flex:1;" @onclick="() => isResetConfirmVisible = false">Cancel</button>
+                <AppButton Text="Yes"
+                           Style="background:#3498db; color:white; flex:1;"
+                           OnClick="@(async _ => await ExecuteResetMonthly())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           Style="flex:1;"
+                           OnClick="@(_ => { isResetConfirmVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isManageCatsVisible)
 {
-    <div class="modal-backdrop" style="z-index:2100;">
-        <div class="modal-content">
-            <h3>Manage Categories</h3>
+    <AppModal Visible="@isManageCatsVisible" Title="Manage Categories" Style="z-index:2100;">
+        <ChildContent>
             <div style="display:flex; gap:5px; margin-bottom:15px;">
                 <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
-                <button class="btn-primary" style="width:auto;" @onclick="AddCategory" aria-label="Add category">+</button>
+                <AppButton Text="+"
+                           Style="width:auto;"
+                           AriaLabel="Add category"
+                           OnClick="@(async _ => await AddCategory())" />
             </div>
             <div style="max-height:200px; overflow-y:auto;">
                 @foreach (var c in myData.BillCategories.ToList())
@@ -158,102 +183,40 @@
                     </div>
                 }
             </div>
-            <button class="btn-trans" style="width:100%; margin-top:10px;" @onclick="() => isManageCatsVisible = false">Close</button>
-        </div>
-    </div>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Text="Close"
+                       Variant="ghost"
+                       Style="width:100%; margin-top:10px;"
+                       OnClick="@(_ => { isManageCatsVisible = false; return Task.CompletedTask; })" />
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isPayModalVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h3>Pay Bill</h3>
+    <AppModal Visible="@isPayModalVisible" Title="Pay Bill">
+        <ChildContent>
             <p>@selectedBillToPay?.Name - @selectedBillToPay?.Amount.ToString("N2")</p>
             <label>From Account:</label>
             <AppSelect Value="@payFromAccountId"
                        ValueChanged="@(v => payFromAccountId = v)"
                        Options="@PayAccountOptions" />
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" @onclick="ConfirmPayBill" disabled="@isPayingBill">@(isPayingBill ? "Processing..." : "Pay")</button>
-                <button class="btn-trans" @onclick="() => isPayModalVisible = false">Cancel</button>
+                <AppButton Text="Pay"
+                           LoadingText="Processing..."
+                           IsLoading="@isPayingBill"
+                           Disabled="@isPayingBill"
+                           OnClick="@(async _ => await ConfirmPayBill())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           OnClick="@(_ => { isPayModalVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
-
-<style>
-    .input-dark {
-        width: 100%;
-        background: #333;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        box-sizing: border-box;
-    }
-
-    .btn-primary {
-        background-color: #00E676;
-        color: black;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .btn-pay {
-        background: #ff9800;
-        color: black;
-        border: none;
-        padding: 5px 15px;
-        border-radius: 5px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .btn-trans {
-        background: transparent;
-        color: gray;
-        border: none;
-        padding: 10px;
-        cursor: pointer;
-    }
-
-    .badge {
-        font-size: 0.7em;
-        color: #00E676;
-        border: 1px solid #00E676;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-top: 5px;
-        display: inline-block;
-    }
-
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 2000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-content {
-        width: 85%;
-        max-width: 350px;
-        background: #1f1f1f;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #333;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    }
-</style>
 
 @code {
     AppData myData = new AppData();

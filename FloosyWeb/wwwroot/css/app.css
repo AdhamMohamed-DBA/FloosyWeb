@@ -150,6 +150,110 @@ button.btn-auto {
     margin: 0;
 }
 
+.input-dark {
+    width: 100%;
+    background: #333;
+    color: var(--text-primary);
+    border: none;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.no-margin {
+    margin-bottom: 0 !important;
+}
+
+.badge {
+    font-size: 0.7em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    width: 85%;
+    max-width: 350px;
+    background: var(--surface-1);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.setting-card {
+    background: var(--surface-1);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border);
+}
+
+.setting-card label {
+    display: block;
+    color: var(--accent);
+    font-size: 12px;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.input-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.btn-small.full-width {
+    width: 100%;
+    background: var(--accent);
+    color: #111;
+    border: none;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-whatsapp {
+    display: block;
+    text-align: center;
+    background: #25D366;
+    color: white;
+    text-decoration: none;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    font-weight: bold;
+}
+
+.btn-logout {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    font-weight: bold;
+    cursor: pointer;
+}
+
 .bottom-nav {
     position: fixed;
     bottom: 0;
