@@ -4,13 +4,13 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<div style="padding: 20px; padding-bottom: 80px;">
+<div class="page-section home-page">
 
-    <div style="margin-bottom: 20px;">
+    <div class="section-heading">
         <h3 style="margin:0;">Welcome, @Firebase.GetUserName()! 👋</h3>
     </div>
 
-    <div class="card" style="text-align:center; background: #1f1f1f; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+    <div class="card balance-card" style="text-align:center;">
         <p style="color:gray; margin:0; font-size: 14px;">Total Balance</p>
         <h1 style="color:#00E676; margin:5px; font-size: 40px;">@TotalBalance.ToString("N2")</h1>
     </div>
@@ -23,7 +23,7 @@
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; width:100%;">
         <h3 style="margin:0;">My Accounts</h3>
-        <button class="btn-trans btn-auto" style="color:#00E676; font-weight:bold; font-size:16px; padding: 5px 10px; margin:0;" @onclick="ShowAddAccountModal">+ Add</button>
+        <button class="btn-trans btn-auto" style="color:#00E676; font-weight:bold; font-size:16px; padding: 5px 10px; margin:0;" @onclick="ShowAddAccountModal" aria-label="Add a new account">+ Add</button>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:10px;">
@@ -58,7 +58,7 @@
                     </div>
                     <div style="text-align:right;">
                         <div style="font-weight:bold; font-size:1.1em; color:@t.ColorHex;">@t.AmountDisplay</div>
-                        <button class="btn-trans btn-auto" style="padding:0; font-size:14px; margin:0;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                        <button class="icon-btn" style="font-size:14px;" @onclick="() => ConfirmDelete(t)" aria-label="Delete transaction" title="Delete transaction">🗑️</button>
                     </div>
                 </div>
             }
@@ -167,7 +167,7 @@
                         <option value="@c">@c</option>
                     }
                 </select>
-                <button style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true">⚙️</button>
+                <button class="icon-btn" style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true" aria-label="Manage categories" title="Manage categories">⚙️</button>
             </div>
             <input @bind="transDesc" class="input-dark" placeholder="Description (Optional)" />
             <div style="display:flex; gap:10px;">
@@ -192,7 +192,7 @@
                 {
                     <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; color:white;">
                         <span>@c</span>
-                        <button class="btn-auto" style="color:#e74c3c; background:none; border:none; width:auto;" @onclick="() => DeleteCategory(c)">✕</button>
+                        <button class="btn-auto" style="color:#e74c3c; background:none; border:none; width:auto;" @onclick="() => DeleteCategory(c)" aria-label="Delete category" title="Delete category">✕</button>
                     </div>
                 }
             </div>
@@ -252,6 +252,18 @@
 }
 
 <style>
+    .home-page {
+        padding-bottom: 88px;
+    }
+
+    .section-heading {
+        margin-bottom: 20px;
+    }
+
+    .balance-card {
+        margin-bottom: 20px;
+    }
+
     .btn-action {
         flex: 1;
         color: white;

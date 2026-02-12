@@ -2,8 +2,8 @@
 @inject NavigationManager Nav
 @inject FirebaseService Firebase
 
-<div class="page" style="background-color: #121212; min-height: 100vh; color: white; display: flex; flex-direction: column;">
-    <main style="flex: 1; padding-bottom: 80px; width: 100%;">
+<div class="page-shell">
+    <main class="page-content">
         @Body
     </main>
 </div>
@@ -11,86 +11,39 @@
 @if (!string.IsNullOrEmpty(Firebase.CurrentUserId) && !Nav.Uri.EndsWith("/") && !Nav.Uri.Contains("/login"))
 {
     <div class="bottom-nav">
-        <a class="nav-item @(IsActive("home") ? "active" : "")" @onclick='() => Nav.NavigateTo("home")'>
+        <a href="home" class="nav-item @(IsActive("home") ? "active" : "")" aria-current="@(IsActive("home") ? "page" : null)" aria-label="Go to Home page">
             <img src="images/home.png" class="nav-icon" />
             <span>Home</span>
         </a>
-        <a class="nav-item @(IsActive("bills") ? "active" : "")" @onclick='() => Nav.NavigateTo("bills")'>
+        <a href="bills" class="nav-item @(IsActive("bills") ? "active" : "")" aria-current="@(IsActive("bills") ? "page" : null)" aria-label="Go to Bills page">
             <img src="images/bill.png" class="nav-icon" />
             <span>Bills</span>
         </a>
-        <a class="nav-item @(IsActive("charts") ? "active" : "")" @onclick='() => Nav.NavigateTo("charts")'>
+        <a href="charts" class="nav-item @(IsActive("charts") ? "active" : "")" aria-current="@(IsActive("charts") ? "page" : null)" aria-label="Go to Charts page">
             <img src="images/chart.png" class="nav-icon" />
             <span>Charts</span>
         </a>
-        <a class="nav-item @(IsActive("debts") ? "active" : "")" @onclick='() => Nav.NavigateTo("debts")'>
+        <a href="debts" class="nav-item @(IsActive("debts") ? "active" : "")" aria-current="@(IsActive("debts") ? "page" : null)" aria-label="Go to Debts page">
             <img src="images/bill.png" class="nav-icon" />
             <span>Debts</span>
         </a>
-        <a class="nav-item @(IsActive("history") ? "active" : "")" @onclick='() => Nav.NavigateTo("history")'>
+        <a href="history" class="nav-item @(IsActive("history") ? "active" : "")" aria-current="@(IsActive("history") ? "page" : null)" aria-label="Go to History page">
             <img src="images/history.png" class="nav-icon" />
             <span>History</span>
         </a>
-        <a class="nav-item @(IsActive("settings") ? "active" : "")" @onclick='() => Nav.NavigateTo("settings")'>
+        <a href="settings" class="nav-item @(IsActive("settings") ? "active" : "")" aria-current="@(IsActive("settings") ? "page" : null)" aria-label="Go to Settings page">
             <img src="images/setting.png" class="nav-icon" />
             <span>Settings</span>
         </a>
     </div>
 }
 
-<style>
-    body, html {
-        margin: 0;
-        padding: 0;
-        background-color: #121212;
-        font-family: 'Segoe UI', sans-serif;
-    }
-
-    .bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: #1f1f1f;
-        display: flex;
-        justify-content: space-around;
-        padding: 10px 0;
-        border-top: 1px solid #333;
-        z-index: 1000;
-        box-shadow: 0 -4px 10px rgba(0,0,0,0.5);
-    }
-
-    .nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-decoration: none;
-        color: gray;
-        font-size: 11px;
-        cursor: pointer;
-        background: transparent;
-        border: none;
-    }
-
-        .nav-item.active {
-            color: #00E676;
-        }
-
-            .nav-item.active img {
-                transform: scale(1.1);
-                filter: drop-shadow(0 0 2px #00E676);
-            }
-
-    .nav-icon {
-        width: 24px;
-        height: 24px;
-        margin-bottom: 4px;
-        object-fit: contain;
-    }
-</style>
-
 @code {
-    bool IsActive(string href) => Nav.Uri.ToLower().Contains(href);
+    bool IsActive(string href)
+    {
+        var relative = Nav.ToBaseRelativePath(Nav.Uri).ToLowerInvariant();
+        return relative == href || relative.StartsWith(href + "/");
+    }
 
     protected override void OnInitialized()
     {
