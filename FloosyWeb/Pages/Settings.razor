@@ -4,7 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<div style="padding: 20px; padding-bottom: 80px;">
+<div class="page-section" style="padding-bottom:88px;">
 
     <div style="text-align:center; margin-bottom:30px;">
         <img src="images/appicon.png" style="width:80px; height:80px; border-radius:15px;" />
@@ -17,9 +17,9 @@
 
         <div class="input-stack" style="margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:20px;">
             <label style="font-size:11px; color:#ccc;">Change Email</label>
-            <input @bind="newEmailInput" class="input-dark" placeholder="New Email Address" />
-            <input @bind="emailPassInput" type="password" class="input-dark" placeholder="Current Password" />
-            <button class="btn-small full-width" @onclick="DoUpdateEmail">Update Email</button>
+            <input @bind="newEmailInput" class="input-dark" placeholder="New Email Address" aria-label="New email address" />
+            <input @bind="emailPassInput" type="password" class="input-dark" placeholder="Current Password" aria-label="Current password" />
+            <button class="btn-small full-width" @onclick="DoUpdateEmail" disabled="@isUpdatingEmail">@(isUpdatingEmail ? "Updating..." : "Update Email")</button>
         </div>
 
         <label style="font-size:11px; color:#e74c3c;">Danger Zone</label>
@@ -31,7 +31,7 @@
         <div class="input-stack">
             <div style="display:flex; align-items:center; gap:10px; white-space:nowrap;">
                 <span>Biometric unlock (this device)</span>
-                <input type="checkbox" checked="@useBiometric" @onchange="ToggleBiometric" />
+                <input type="checkbox" checked="@useBiometric" @onchange="ToggleBiometric" aria-label="Enable biometric unlock" />
             </div>
             <p style="color:gray; font-size:10px; margin-top:5px;">
                 Uses Face ID / fingerprint when supported. On devices without biometrics, login stays password-only.
@@ -43,7 +43,7 @@
         <label>Start of Month (Salary Day)</label>
         <div class="input-stack">
             <input type="number" min="1" max="28" @bind="financialDay" class="input-dark" placeholder="e.g. 25" style="text-align:center;" />
-            <button class="btn-small full-width" @onclick="UpdateFinancialDay">Save</button>
+            <button class="btn-small full-width" @onclick="UpdateFinancialDay" disabled="@isSavingFinancialDay">@(isSavingFinancialDay ? "Saving..." : "Save")</button>
         </div>
         <p style="color:gray; font-size:10px; margin-top:5px;">
             Example: If set to 25, transactions from Feb 25th will appear in March charts.
@@ -54,7 +54,7 @@
         <label>Display Name</label>
         <div class="input-stack">
             <input @bind="newName" class="input-dark" placeholder="Your Name" />
-            <button class="btn-small full-width" @onclick="UpdateName">Save</button>
+            <button class="btn-small full-width" @onclick="UpdateName" disabled="@isUpdatingName">@(isUpdatingName ? "Saving..." : "Save")</button>
         </div>
     </div>
 
@@ -63,7 +63,7 @@
         <div class="input-stack">
             <input @bind="oldPass" type="password" class="input-dark" placeholder="Old Password" />
             <input @bind="newPass" type="password" class="input-dark" placeholder="New Password" />
-            <button class="btn-small full-width" @onclick="UpdatePass">Update Password</button>
+            <button class="btn-small full-width" @onclick="UpdatePass" disabled="@isUpdatingPassword">@(isUpdatingPassword ? "Updating..." : "Update Password")</button>
         </div>
     </div>
 
@@ -215,6 +215,10 @@
     string messageTitle = "", messageBody = "", messageType = "Info";
 
     bool useBiometric = false;
+    bool isUpdatingEmail = false;
+    bool isSavingFinancialDay = false;
+    bool isUpdatingName = false;
+    bool isUpdatingPassword = false;
 
     void ShowMessage(string title, string body, string type = "Info")
     {
@@ -242,56 +246,88 @@
 
     async Task UpdateFinancialDay()
     {
-        if (financialDay < 1 || financialDay > 28) { ShowMessage("Error", "Day must be between 1 and 28", "Error"); return; }
-        myData.FinancialStartDay = financialDay;
-        await Firebase.Save(myData);
-        ShowMessage("Success", "Financial start day updated!", "Success");
+        isSavingFinancialDay = true;
+        try
+        {
+            if (financialDay < 1 || financialDay > 28) { ShowMessage("Error", "Day must be between 1 and 28", "Error"); return; }
+            myData.FinancialStartDay = financialDay;
+            await Firebase.Save(myData);
+            ShowMessage("Success", "Financial start day updated!", "Success");
+        }
+        finally
+        {
+            isSavingFinancialDay = false;
+        }
     }
 
     async Task UpdateName()
     {
-        if (string.IsNullOrWhiteSpace(newName)) return;
-        await Firebase.UpdateUserName(newName);
-        ShowMessage("Success", "Name updated!", "Success");
+        isUpdatingName = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newName)) return;
+            await Firebase.UpdateUserName(newName);
+            ShowMessage("Success", "Name updated!", "Success");
+        }
+        finally
+        {
+            isUpdatingName = false;
+        }
     }
 
     async Task UpdatePass()
     {
-        if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { ShowMessage("Error", "Enter old and new password.", "Error"); return; }
-        // 🔥 FIX: Check for Null Email before calling Login (CS8604)
-        if (string.IsNullOrEmpty(Firebase.UserEmail)) { ShowMessage("Error", "User email not found.", "Error"); return; }
+        isUpdatingPassword = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(oldPass) || string.IsNullOrWhiteSpace(newPass)) { ShowMessage("Error", "Enter old and new password.", "Error"); return; }
+            // 🔥 FIX: Check for Null Email before calling Login (CS8604)
+            if (string.IsNullOrEmpty(Firebase.UserEmail)) { ShowMessage("Error", "User email not found.", "Error"); return; }
 
-        // Use '?? ""' safely because we checked it's not null/empty above
-        var verify = await Firebase.Login(Firebase.UserEmail ?? "", oldPass);
-        if (verify != "Success") { ShowMessage("Failed", "Old password incorrect!", "Error"); return; }
+            // Use '?? ""' safely because we checked it's not null/empty above
+            var verify = await Firebase.Login(Firebase.UserEmail ?? "", oldPass);
+            if (verify != "Success") { ShowMessage("Failed", "Old password incorrect!", "Error"); return; }
 
-        var res = await Firebase.ChangePassword(newPass);
-        ShowMessage(res == "Success" ? "Success" : "Info", res, res == "Success" ? "Success" : "Error");
-        oldPass = ""; newPass = "";
+            var res = await Firebase.ChangePassword(newPass);
+            ShowMessage(res == "Success" ? "Success" : "Info", res, res == "Success" ? "Success" : "Error");
+            oldPass = ""; newPass = "";
+        }
+        finally
+        {
+            isUpdatingPassword = false;
+        }
     }
 
     async Task DoUpdateEmail()
     {
-        if (string.IsNullOrWhiteSpace(newEmailInput) || string.IsNullOrWhiteSpace(emailPassInput))
+        isUpdatingEmail = true;
+        try
         {
-            ShowMessage("Error", "Enter new email and current password.", "Error");
-            return;
+            if (string.IsNullOrWhiteSpace(newEmailInput) || string.IsNullOrWhiteSpace(emailPassInput))
+            {
+                ShowMessage("Error", "Enter new email and current password.", "Error");
+                return;
+            }
+
+            var currentEmail = Firebase.UserEmail ?? "";
+            if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
+
+            var verify = await Firebase.Login(currentEmail, emailPassInput);
+            if (verify != "Success") { ShowMessage("Failed", "Password incorrect!", "Error"); return; }
+
+            var res = await Firebase.UpdateEmail(newEmailInput);
+            if (res == "Success")
+            {
+                userEmail = newEmailInput;
+                ShowMessage("Success", "Email updated successfully!", "Success");
+                newEmailInput = ""; emailPassInput = "";
+            }
+            else ShowMessage("Error", res, "Error");
         }
-
-        var currentEmail = Firebase.UserEmail ?? "";
-        if (string.IsNullOrEmpty(currentEmail)) { ShowMessage("Error", "User not found.", "Error"); return; }
-
-        var verify = await Firebase.Login(currentEmail, emailPassInput);
-        if (verify != "Success") { ShowMessage("Failed", "Password incorrect!", "Error"); return; }
-
-        var res = await Firebase.UpdateEmail(newEmailInput);
-        if (res == "Success")
+        finally
         {
-            userEmail = newEmailInput;
-            ShowMessage("Success", "Email updated successfully!", "Success");
-            newEmailInput = ""; emailPassInput = "";
+            isUpdatingEmail = false;
         }
-        else ShowMessage("Error", res, "Error");
     }
 
     async Task DoDeleteAccount()

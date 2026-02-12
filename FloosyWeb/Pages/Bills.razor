@@ -3,20 +3,20 @@
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
 
-<div style="padding: 20px; padding-bottom: 80px;" id="billsTop">
+<div class="page-section" style="padding-bottom:88px;" id="billsTop">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div class="section-header" style="margin-bottom:20px;">
         <h3 style="margin:0;">Bills 🧾</h3>
-        <button style="background:#3498db; border:none; color:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; width: auto;" @onclick="() => isResetConfirmVisible = true">
+        <button class="btn-info btn-auto" style="font-size:12px;" @onclick="() => isResetConfirmVisible = true" aria-label="Start a new month and reset recurring bills">
             🔄 New Month
         </button>
     </div>
 
-    <div style="background:#1f1f1f; padding:15px; border-radius:15px; margin-bottom:25px; border:1px solid #333;">
+    <div class="card" style="padding:15px; margin-bottom:25px;">
         <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? "Edit Bill" : "New Bill")</h4>
 
-        <input @bind="currentBill.Name" placeholder="Bill Name" class="input-dark" />
-        <input type="number" @bind="currentBill.Amount" placeholder="Amount" class="input-dark" />
+        <input @bind="currentBill.Name" placeholder="Bill Name" class="input-dark" aria-label="Bill name" />
+        <input type="number" @bind="currentBill.Amount" placeholder="Amount" class="input-dark" aria-label="Bill amount" />
 
         <div style="display:flex; gap:5px;">
             <select @bind="currentBill.Category" class="input-dark" style="flex:1;">
@@ -25,7 +25,7 @@
                     <option value="@c">@c</option>
                 }
             </select>
-            <button style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true">⚙️</button>
+            <button class="icon-btn" style="background:#333; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true" aria-label="Manage bill categories" title="Manage bill categories">⚙️</button>
         </div>
 
         <div style="display:flex; gap:5px;">
@@ -50,7 +50,7 @@
             }
         </div>
 
-        <button class="btn-primary" style="width:100%;" @onclick="SaveBill">@(isEditMode ? "Update Bill" : "Add Bill")</button>
+        <button class="btn-primary" style="width:100%;" @onclick="SaveBill" disabled="@isSavingBill">@(isSavingBill ? "Saving..." : (isEditMode ? "Update Bill" : "Add Bill"))</button>
         @if (isEditMode)
         {
             <button class="btn-trans" style="width:100%; margin-top:5px;" @onclick="CancelEdit">Cancel Edit</button>
@@ -88,7 +88,7 @@
                     {
                         <button class="btn-pay" @onclick="() => InitiatePayBill(bill)">Pay</button>
                     }
-                    <button style="background:none; border:none; font-size:16px; cursor:pointer;" @onclick="() => ConfirmDeleteBill(bill)">🗑️</button>
+                    <button class="icon-btn" style="font-size:16px;" @onclick="() => ConfirmDeleteBill(bill)" aria-label="Delete bill" title="Delete bill">🗑️</button>
                 </div>
             </div>
         </div>
@@ -141,14 +141,14 @@
             <h3>Manage Categories</h3>
             <div style="display:flex; gap:5px; margin-bottom:15px;">
                 <input @bind="newCatName" class="input-dark" placeholder="New Category" style="margin-bottom:0;" />
-                <button class="btn-primary" style="width:auto;" @onclick="AddCategory">+</button>
+                <button class="btn-primary" style="width:auto;" @onclick="AddCategory" aria-label="Add category">+</button>
             </div>
             <div style="max-height:200px; overflow-y:auto;">
                 @foreach (var c in myData.BillCategories.ToList())
                 {
                     <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; color:white;">
                         <span>@c</span>
-                        <button style="color:#e74c3c; background:none; border:none;" @onclick="() => DeleteCategory(c)">✕</button>
+                        <button class="btn-auto" style="color:#e74c3c; background:none; border:none;" @onclick="() => DeleteCategory(c)" aria-label="Delete category" title="Delete category">✕</button>
                     </div>
                 }
             </div>
@@ -171,7 +171,7 @@
                 }
             </select>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" @onclick="ConfirmPayBill">Pay</button>
+                <button class="btn-primary" @onclick="ConfirmPayBill" disabled="@isPayingBill">@(isPayingBill ? "Processing..." : "Pay")</button>
                 <button class="btn-trans" @onclick="() => isPayModalVisible = false">Cancel</button>
             </div>
         </div>
@@ -260,6 +260,8 @@
     bool isEditMode = false;
     bool isManageCatsVisible = false;
     bool isPayModalVisible = false;
+    bool isSavingBill = false;
+    bool isPayingBill = false;
 
     // 🔥 New Modal Flags
     bool isMessageVisible = false;
@@ -287,8 +289,11 @@
     async Task SaveBill()
     {
         if (string.IsNullOrEmpty(currentBill.Name)) return;
+        isSavingBill = true;
         if (!isEditMode) myData.Bills.Add(currentBill);
-        await Firebase.Save(myData); CancelEdit();
+        await Firebase.Save(myData);
+        CancelEdit();
+        isSavingBill = false;
     }
 
     // 🔥 Delete Logic replaced with Modal
@@ -323,6 +328,7 @@
     async Task ConfirmPayBill()
     {
         if (selectedBillToPay == null) return;
+        isPayingBill = true;
         var acc = myData.Accounts.FirstOrDefault(x => x.Id == payFromAccountId);
         if (acc != null)
         {
@@ -332,6 +338,7 @@
                 messageTitle = "Error";
                 messageBody = "Insufficient balance!";
                 isMessageVisible = true;
+                isPayingBill = false;
                 return;
             }
             acc.Balance -= selectedBillToPay.Amount;
@@ -339,5 +346,6 @@
             selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;
             await Firebase.Save(myData); isPayModalVisible = false;
         }
+        isPayingBill = false;
     }
 }

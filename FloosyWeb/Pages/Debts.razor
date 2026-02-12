@@ -2,7 +2,7 @@
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
 
-<div style="padding:20px; padding-bottom:80px;">
+<div class="page-section" style="padding-bottom:88px;">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <div style="display:flex; align-items:center; gap:8px;">
@@ -36,8 +36,10 @@
                         <div style="font-weight:bold; font-size:1.1em; color:@color;">
                             @GetPersonBalanceDisplay(p)
                         </div>
-                        <button class="btn-trans" style="padding:0; font-size:13px; color:#e74c3c;"
+                        <button class="icon-btn" style="font-size:13px; color:#e74c3c;"
                                 @onclick="() => AskDeletePerson(p)"
+                                aria-label="Delete contact"
+                                title="Delete contact"
                                 @onclick:stopPropagation="true">
                             🗑️
                         </button>
@@ -68,8 +70,8 @@
                                 @(m.IsFromPerson ? "+" : "-")@m.Amount.ToString("N2")
                             </div>
                             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
-                                <button class="btn-trans" style="padding:0; font-size:14px;" @onclick="() => EditMove(m)">✏️</button>
-                                <button class="btn-trans" style="padding:0; font-size:14px;" @onclick="() => ConfirmDeleteMove(m)">🗑️</button>
+                                <button class="icon-btn" style="font-size:14px;" @onclick="() => EditMove(m)" aria-label="Edit debt move" title="Edit debt move">✏️</button>
+                                <button class="icon-btn" style="font-size:14px;" @onclick="() => ConfirmDeleteMove(m)" aria-label="Delete debt move" title="Delete debt move">🗑️</button>
                             </div>
                         </div>
                     </div>
@@ -112,7 +114,7 @@
             }
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SavePerson">Save</button>
+                <button class="btn-primary" style="flex:1;" @onclick="SavePerson" disabled="@isSavingPerson">@(isSavingPerson ? "Saving..." : "Save")</button>
                 <button class="btn-trans" style="flex:1;" @onclick="() => isPersonModalVisible = false">Cancel</button>
             </div>
 
@@ -164,7 +166,7 @@
             <input @bind="moveNote" class="input-dark" placeholder="Note (Optional)" />
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="flex:1;" @onclick="SaveMove">Save</button>
+                <button class="btn-primary" style="flex:1;" @onclick="SaveMove" disabled="@isSavingMove">@(isSavingMove ? "Saving..." : "Save")</button>
                 <button class="btn-trans" style="flex:1;" @onclick="() => isMoveModalVisible = false">Cancel</button>
             </div>
         </div>
@@ -261,6 +263,8 @@
     bool isPersonModalVisible = false;
     bool isMoveModalVisible = false;
     bool isDeletePersonConfirmVisible = false;
+    bool isSavingPerson = false;
+    bool isSavingMove = false;
 
     // Edit/delete specific debt moves
     bool isEditMoveVisible = false;
@@ -345,6 +349,8 @@
         if (string.IsNullOrWhiteSpace(personNameInput))
             return;
 
+        isSavingPerson = true;
+
         if (editingPerson == null)
         {
             var p = new Person { Name = personNameInput };
@@ -394,6 +400,7 @@
 
         await Firebase.Save(myData);
         isPersonModalVisible = false;
+        isSavingPerson = false;
     }
 
     async Task DeletePerson()
@@ -545,9 +552,14 @@
         if (moveAmount <= 0)
             return;
 
+        isSavingMove = true;
+
         var acc = myData.Accounts.FirstOrDefault(a => a.Id == selectedAccountId);
         if (acc == null)
+        {
+            isSavingMove = false;
             return;
+        }
 
         var amount = moveAmount;
 
@@ -604,6 +616,7 @@
             TransactionId = t.Id
         });
 
+        isSavingMove = false;
         await Firebase.Save(myData);
         isMoveModalVisible = false;
     }
@@ -686,4 +699,6 @@
         </div>
     </div>
 }
+
+
 

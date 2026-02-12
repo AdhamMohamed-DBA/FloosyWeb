@@ -2,14 +2,33 @@
 @using FloosyWeb.Models
 @inject FirebaseService Firebase
 
-<div style="padding: 20px; padding-bottom: 80px;">
+<div class="page-section" style="padding-bottom: 88px;">
     <h3>Analytics 📊</h3>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Income</div>
+            <div class="kpi-value" style="color:#2ecc71;">+@CurrentIncome.ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Expense</div>
+            <div class="kpi-value" style="color:#e74c3c;">-@Math.Abs(CurrentExpense).ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Net</div>
+            <div class="kpi-value" style="color:@(NetAmount >= 0 ? "#2ecc71" : "#e74c3c");">@NetAmount.ToString("N0")</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">vs Prev Month</div>
+            <div class="kpi-value" style="color:@(MoMDelta >= 0 ? "#2ecc71" : "#e74c3c");">@MoMDelta.ToString("N0")</div>
+        </div>
+    </div>
 
     <div class="card" style="padding:15px; margin-bottom:15px; background:#1f1f1f;">
 
         <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#333" : "#00E676"); color:@(isLifetime ? "white" : "black")" @onclick="() => isLifetime = false">📅 Monthly</button>
-            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#00E676" : "#333"); color:@(isLifetime ? "black" : "white")" @onclick="() => isLifetime = true">♾️ Lifetime</button>
+            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#333" : "#00E676"); color:@(isLifetime ? "white" : "black")" @onclick="() => isLifetime = false" aria-label="Switch to monthly analytics">📅 Monthly</button>
+            <button class="btn-primary" style="flex:1; background-color:@(isLifetime ? "#00E676" : "#333"); color:@(isLifetime ? "black" : "white")" @onclick="() => isLifetime = true" aria-label="Switch to lifetime analytics">♾️ Lifetime</button>
         </div>
 
         @if (!isLifetime)
@@ -47,8 +66,8 @@
     </div>
 
     <div style="display:flex; gap:10px; margin-bottom:20px;">
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false">Income</button>
-        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true">Expense</button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#333" : "#2ecc71"); color:@(isExpense ? "white" : "black");" @onclick="() => isExpense = false" aria-label="Show income category chart">Income</button>
+        <button style="flex:1; padding:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background-color:@(isExpense ? "#e74c3c" : "#333"); color:white;" @onclick="() => isExpense = true" aria-label="Show expense category chart">Expense</button>
     </div>
 
     @if (ChartData.Any())
@@ -116,6 +135,22 @@
     decimal CurrentIncome => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
     decimal CurrentExpense => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
     decimal TotalVolume => CurrentIncome + Math.Abs(CurrentExpense);
+    decimal NetAmount => CurrentIncome - Math.Abs(CurrentExpense);
+
+    decimal PrevMonthNet
+    {
+        get
+        {
+            if (isLifetime) return 0;
+            if (!DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate)) return 0;
+            var prev = selectedDate.AddMonths(-1);
+            var prevIncome = myData.History.Where(x => x.Date.Year == prev.Year && x.Date.Month == prev.Month && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
+            var prevExpense = myData.History.Where(x => x.Date.Year == prev.Year && x.Date.Month == prev.Month && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
+            return prevIncome - Math.Abs(prevExpense);
+        }
+    }
+
+    decimal MoMDelta => isLifetime ? 0 : NetAmount - PrevMonthNet;
 
     double IncomePct => TotalVolume == 0 ? 0 : (double)(CurrentIncome / TotalVolume) * 100;
     double ExpensePct => TotalVolume == 0 ? 0 : (double)(Math.Abs(CurrentExpense) / TotalVolume) * 100;

@@ -3,7 +3,7 @@
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
 
-<div style="padding: 20px; padding-bottom: 80px;">
+<div class="page-section" style="padding-bottom:88px;">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
         <h3 style="margin:0;">History 📜</h3>
@@ -37,8 +37,8 @@
                 <div style="text-align:right;">
                     <div style="font-weight:bold; font-size:1.2em; color:@t.ColorHex; margin-bottom:5px;">@t.AmountDisplay</div>
                     <div style="display:flex; gap:10px; justify-content:flex-end;">
-                        <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => EditTrans(t)">✏️</button>
-                        <button class="btn-trans" style="padding:0; font-size:16px;" @onclick="() => ConfirmDelete(t)">🗑️</button>
+                        <button class="icon-btn" style="font-size:16px;" @onclick="() => EditTrans(t)" aria-label="Edit transaction" title="Edit transaction">✏️</button>
+                        <button class="icon-btn" style="font-size:16px;" @onclick="() => ConfirmDelete(t)" aria-label="Delete transaction" title="Delete transaction">🗑️</button>
                     </div>
                 </div>
             </div>
@@ -64,7 +64,7 @@
             </select>
 
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" @onclick="SaveEdit">Save</button>
+                <button class="btn-primary" @onclick="SaveEdit" disabled="@isSavingEdit">@(isSavingEdit ? "Saving..." : "Save")</button>
                 <button class="btn-trans" @onclick="() => isEditVisible = false">Cancel</button>
             </div>
         </div>
@@ -86,7 +86,7 @@
                 }
             </select>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="background:#e74c3c;" @onclick="ExecuteDelete">Delete</button>
+                <button class="btn-primary" style="background:#e74c3c;" @onclick="ExecuteDelete" disabled="@isDeleting">@(isDeleting ? "Deleting..." : "Delete")</button>
                 <button class="btn-trans" @onclick="() => isDeleteModalVisible = false">Cancel</button>
             </div>
         </div>
@@ -155,6 +155,8 @@
     // UI Flags
     bool isEditVisible = false;
     bool isDeleteModalVisible = false;
+    bool isSavingEdit = false;
+    bool isDeleting = false;
 
     // Logic Vars
     string editAccountId = "";
@@ -195,6 +197,7 @@
 
     async Task SaveEdit()
     {
+        isSavingEdit = true;
         if (!string.IsNullOrEmpty(editAccountId))
         {
             var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
@@ -217,6 +220,7 @@
 
         await Firebase.Save(myData);
         isEditVisible = false;
+        isSavingEdit = false;
     }
 
     void ConfirmDelete(Transaction t)
@@ -227,6 +231,7 @@
 
     async Task ExecuteDelete()
     {
+        isDeleting = true;
         if (!string.IsNullOrEmpty(refundAccountId))
         {
             var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
@@ -239,5 +244,6 @@
         myData.History.Remove(selectedTrans);
         await Firebase.Save(myData);
         isDeleteModalVisible = false;
+        isDeleting = false;
     }
 }
