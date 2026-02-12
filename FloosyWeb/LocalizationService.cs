@@ -54,6 +54,10 @@ public class LocalizationService
             {
                 "Ok" => "OK",
                 "AppUpdated" => "App Updated",
+                "UpdateRequired" => "Update Required",
+                "CurrentVersionText" => "Your Version",
+                "LatestVersionText" => "Latest Version",
+                "UpdateNow" => "Update Now",
                 "BillsTitle" => "Bills 🧾",
                 "DebtsTitle" => "Debts 💵",
                 "HistoryTitle" => "History 📜",
@@ -97,6 +101,10 @@ public class LocalizationService
 
             // Update popup / localization controls
             "AppUpdated" => "تم تحديث التطبيق",
+            "UpdateRequired" => "تحديث مطلوب",
+            "CurrentVersionText" => "نسختك الحالية",
+            "LatestVersionText" => "أحدث نسخة",
+            "UpdateNow" => "حدّث الآن",
             "Language" => "اللغة",
             "English" => "English",
             "Arabic" => "العربية",

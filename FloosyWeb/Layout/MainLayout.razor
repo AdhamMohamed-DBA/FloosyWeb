@@ -25,6 +25,28 @@
     </AppModal>
 }
 
+@if (isUpdateRequiredVisible)
+{
+    <AppModal Visible="@isUpdateRequiredVisible" Title="@L.T("UpdateRequired")" Style="border:1px solid #e67e22;">
+        <ChildContent>
+            <p style="color:#ccc; margin-bottom:8px;">@L.T("CurrentVersionText"): <b>@CurrentAppVersion</b></p>
+            <p style="color:#ccc; margin-bottom:8px;">@L.T("LatestVersionText"): <b>@requiredLatestVersion</b></p>
+            <p style="color:#fff; white-space:pre-wrap; margin-bottom:0; text-align:@requiredUpdateTextAlign;" dir="@requiredUpdateDir">@requiredUpdateMessage</p>
+        </ChildContent>
+        <FooterContent>
+            <div style="display:flex; gap:10px;">
+                <AppButton Text="@L.T("UpdateNow")"
+                           Style="flex:1; background:#00E676; color:black;"
+                           OnClick="@(async _ => await UpdateNowAsync())" />
+                <AppButton Text="@L.T("Ok")"
+                           Variant="ghost"
+                           Style="flex:1; background:#333; color:white;"
+                           OnClick="@(_ => { isUpdateRequiredVisible = false; return Task.CompletedTask; })" />
+            </div>
+        </FooterContent>
+    </AppModal>
+}
+
 @if (!string.IsNullOrEmpty(Firebase.CurrentUserId) && !Nav.Uri.EndsWith("/") && !Nav.Uri.Contains("/login"))
 {
     <div class="bottom-nav">
@@ -56,11 +78,18 @@
 }
 
 @code {
+    private const string CurrentAppVersion = "2.5.0";
+
     bool isUpdateNoticeVisible = false;
+    bool isUpdateRequiredVisible = false;
     string activeUpdateVersion = "";
     string activeUpdateMessage = "";
     string activeUpdateDir = "ltr";
     string activeUpdateTextAlign = "left";
+    string requiredLatestVersion = "";
+    string requiredUpdateMessage = "";
+    string requiredUpdateDir = "ltr";
+    string requiredUpdateTextAlign = "left";
 
     bool IsActive(string href)
     {
@@ -82,10 +111,10 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        await TryShowUpdateNoticeAsync();
+        await EvaluateUpdateStateAsync();
     }
 
-    async Task TryShowUpdateNoticeAsync()
+    async Task EvaluateUpdateStateAsync()
     {
         if (string.IsNullOrEmpty(Firebase.CurrentUserId)) return;
 
@@ -93,16 +122,36 @@
         if (!update.IsRequired) return;
         if (string.IsNullOrWhiteSpace(update.Version) || string.IsNullOrWhiteSpace(update.Message)) return;
 
+        var latestVersion = (update.Version ?? string.Empty).Trim();
+        var versionComparison = CompareVersions(CurrentAppVersion, latestVersion);
+
+        // User version is older than required version => show update-required prompt every app open
+        if (versionComparison < 0)
+        {
+            requiredLatestVersion = latestVersion;
+            requiredUpdateMessage = update.Message;
+
+            var reqAlignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
+            requiredUpdateDir = reqAlignment == "rtl" ? "rtl" : "ltr";
+            requiredUpdateTextAlign = reqAlignment == "rtl" ? "right" : "left";
+
+            isUpdateRequiredVisible = true;
+            isUpdateNoticeVisible = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         var key = $"floosy_seen_update_{Firebase.CurrentUserId}";
         var seenVersion = await JS.InvokeAsync<string>("localStorage.getItem", key);
-        if (string.Equals(seenVersion, update.Version, StringComparison.OrdinalIgnoreCase)) return;
+        if (string.Equals(seenVersion, latestVersion, StringComparison.OrdinalIgnoreCase)) return;
 
-        activeUpdateVersion = update.Version;
+        activeUpdateVersion = latestVersion;
         activeUpdateMessage = update.Message;
         var alignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
         activeUpdateDir = alignment == "rtl" ? "rtl" : "ltr";
         activeUpdateTextAlign = alignment == "rtl" ? "right" : "left";
         isUpdateNoticeVisible = true;
+        isUpdateRequiredVisible = false;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -115,6 +164,36 @@
         }
 
         isUpdateNoticeVisible = false;
+    }
+
+    async Task UpdateNowAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("floosyAppUpdateNow");
+        }
+        catch
+        {
+            Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        }
+    }
+
+    static int CompareVersions(string current, string target)
+    {
+        var a = (current ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var b = (target ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var max = Math.Max(a.Length, b.Length);
+
+        for (int i = 0; i < max; i++)
+        {
+            var left = (i < a.Length && int.TryParse(a[i], out var av)) ? av : 0;
+            var right = (i < b.Length && int.TryParse(b[i], out var bv)) ? bv : 0;
+
+            if (left < right) return -1;
+            if (left > right) return 1;
+        }
+
+        return 0;
     }
 
     public void Dispose()
