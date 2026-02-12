@@ -5,6 +5,8 @@ using Firebase.Database;
 using Firebase.Database.Query;
 using FloosyWeb.Models;
 using Microsoft.Extensions.Configuration;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace FloosyWeb;
 
@@ -107,14 +109,49 @@ public class FirebaseService
         catch (Exception ex) { return GetFriendlyError(ex); }
     }
 
-    // ✅ تصحيح خطأ UpdateEmail المفقود
+    // Update the authenticated user's email in Firebase Auth
     public async Task<string> UpdateEmail(string newEmail)
     {
         if (auth?.User == null) return "Not Logged In";
+        if (string.IsNullOrWhiteSpace(newEmail)) return "Invalid Email.";
+
         try
         {
-            UserEmail = newEmail;
-            _localStorage.SetItem("UserEmail", newEmail);
+            var normalizedEmail = newEmail.Trim();
+
+            var idToken = await auth.User.GetIdTokenAsync(forceRefresh: true);
+            using var http = new HttpClient();
+
+            var response = await http.PostAsJsonAsync(
+                $"https://identitytoolkit.googleapis.com/v1/accounts:update?key={ApiKey}",
+                new
+                {
+                    idToken,
+                    email = normalizedEmail,
+                    returnSecureToken = true
+                });
+
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    using var json = JsonDocument.Parse(body);
+                    var errMsg = json.RootElement
+                        .GetProperty("error")
+                        .GetProperty("message")
+                        .GetString();
+
+                    throw new Exception(errMsg ?? body);
+                }
+                catch
+                {
+                    throw new Exception(body);
+                }
+            }
+
+            UserEmail = normalizedEmail;
+            _localStorage.SetItem("UserEmail", normalizedEmail);
             return "Success";
         }
         catch (Exception ex) { return GetFriendlyError(ex); }
@@ -188,7 +225,7 @@ public class FirebaseService
         if (msg.Contains("EMAIL_NOT_FOUND") || msg.Contains("INVALID_EMAIL")) return "Invalid Email.";
         if (msg.Contains("INVALID_PASSWORD") || msg.Contains("INVALID_LOGIN_CREDENTIALS")) return "Wrong Password.";
         if (msg.Contains("EMAIL_EXISTS")) return "Email already exists.";
-        if (msg.Contains("RequiresRecentLogin")) return "Please login again to verify.";
+        if (msg.Contains("RequiresRecentLogin") || msg.Contains("CREDENTIAL_TOO_OLD_LOGIN_AGAIN") || msg.Contains("TOKEN_EXPIRED") || msg.Contains("INVALID_ID_TOKEN")) return "Please login again to verify.";
         return "Check credentials or internet.";
     }
 }
