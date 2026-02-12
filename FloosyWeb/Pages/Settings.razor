@@ -17,9 +17,21 @@
 
         <div class="input-stack" style="margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:20px;">
             <label style="font-size:11px; color:#ccc;">Change Email</label>
-            <input @bind="newEmailInput" class="input-dark" placeholder="New Email Address" aria-label="New email address" />
-            <input @bind="emailPassInput" type="password" class="input-dark" placeholder="Current Password" aria-label="Current password" />
-            <button class="btn-small full-width" @onclick="DoUpdateEmail" disabled="@isUpdatingEmail">@(isUpdatingEmail ? "Updating..." : "Update Email")</button>
+            <AppInput Value="@newEmailInput"
+                      ValueChanged="@(v => newEmailInput = v)"
+                      Placeholder="New Email Address"
+                      AriaLabel="New email address" />
+            <AppInput Type="password"
+                      Value="@emailPassInput"
+                      ValueChanged="@(v => emailPassInput = v)"
+                      Placeholder="Current Password"
+                      AriaLabel="Current password" />
+            <AppButton Text="Update Email"
+                       LoadingText="Updating..."
+                       IsLoading="@isUpdatingEmail"
+                       Disabled="@isUpdatingEmail"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await DoUpdateEmail())" />
         </div>
 
         <label style="font-size:11px; color:#e74c3c;">Danger Zone</label>
@@ -53,17 +65,35 @@
     <div class="setting-card">
         <label>Display Name</label>
         <div class="input-stack">
-            <input @bind="newName" class="input-dark" placeholder="Your Name" />
-            <button class="btn-small full-width" @onclick="UpdateName" disabled="@isUpdatingName">@(isUpdatingName ? "Saving..." : "Save")</button>
+            <AppInput Value="@newName"
+                      ValueChanged="@(v => newName = v)"
+                      Placeholder="Your Name" />
+            <AppButton Text="Save"
+                       LoadingText="Saving..."
+                       IsLoading="@isUpdatingName"
+                       Disabled="@isUpdatingName"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await UpdateName())" />
         </div>
     </div>
 
     <div class="setting-card">
         <label>Change Password</label>
         <div class="input-stack">
-            <input @bind="oldPass" type="password" class="input-dark" placeholder="Old Password" />
-            <input @bind="newPass" type="password" class="input-dark" placeholder="New Password" />
-            <button class="btn-small full-width" @onclick="UpdatePass" disabled="@isUpdatingPassword">@(isUpdatingPassword ? "Updating..." : "Update Password")</button>
+            <AppInput Type="password"
+                      Value="@oldPass"
+                      ValueChanged="@(v => oldPass = v)"
+                      Placeholder="Old Password" />
+            <AppInput Type="password"
+                      Value="@newPass"
+                      ValueChanged="@(v => newPass = v)"
+                      Placeholder="New Password" />
+            <AppButton Text="Update Password"
+                       LoadingText="Updating..."
+                       IsLoading="@isUpdatingPassword"
+                       Disabled="@isUpdatingPassword"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await UpdatePass())" />
         </div>
     </div>
 
@@ -83,7 +113,9 @@
         <div class="modal-content" style="text-align:center;">
             <h3 style="margin-top:0; color:@(messageType == "Success" ? "#00E676" : "#e74c3c");">@messageTitle</h3>
             <p style="color:#ccc; margin-bottom:20px; font-size:14px;">@messageBody</p>
-            <button class="btn-small full-width" @onclick="() => isMessageVisible = false">OK</button>
+            <AppButton Text="OK"
+                       Style="width:100%;"
+                       OnClick="@(_ => { isMessageVisible = false; return Task.CompletedTask; })" />
         </div>
     </div>
 }

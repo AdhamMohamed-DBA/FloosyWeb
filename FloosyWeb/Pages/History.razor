@@ -48,49 +48,57 @@
 
 @if (isEditVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h3>Edit Transaction</h3>
-            <input @bind="selectedTrans.Desc" class="input-dark" placeholder="Description" />
+    <AppModal Visible="@isEditVisible" Title="Edit Transaction">
+        <ChildContent>
+            <AppInput Value="@(selectedTrans.Desc ?? string.Empty)"
+                      ValueChanged="@(v => selectedTrans.Desc = v)"
+                      Placeholder="Description" />
             <input type="number" @bind="selectedTrans.Amount" class="input-dark" placeholder="Amount" />
 
             <label style="font-size:12px; color:gray;">Update Balance on Account:</label>
-            <select @bind="editAccountId" class="input-dark">
-                <option value="">Don't Change Balance (Text Only)</option>
-                @foreach (var acc in myData.Accounts)
-                {
-                    <option value="@acc.Id">@acc.Name</option>
-                }
-            </select>
-
+            <AppSelect Value="@editAccountId"
+                       ValueChanged="@(v => editAccountId = v)"
+                       Options="@HistoryEditAccountOptions" />
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" @onclick="SaveEdit" disabled="@isSavingEdit">@(isSavingEdit ? "Saving..." : "Save")</button>
-                <button class="btn-trans" @onclick="() => isEditVisible = false">Cancel</button>
+                <AppButton Text="Save"
+                           LoadingText="Saving..."
+                           IsLoading="@isSavingEdit"
+                           Disabled="@isSavingEdit"
+                           OnClick="@(async _ => await SaveEdit())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           OnClick="@(_ => { isEditVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
 
 @if (isDeleteModalVisible)
 {
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h3 style="color:#e74c3c;">Delete Transaction?</h3>
+    <AppModal Visible="@isDeleteModalVisible" Title="Delete Transaction?" Style="border:1px solid #e74c3c;">
+        <ChildContent>
             <p style="color:#ccc;">@selectedTrans.Desc</p>
             <label style="color:gray; font-size:12px;">Refund To (Optional):</label>
-            <select @bind="refundAccountId" class="input-dark">
-                <option value="">Just Delete (No Refund)</option>
-                @foreach (var acc in myData.Accounts)
-                {
-                    <option value="@acc.Id">@acc.Name</option>
-                }
-            </select>
+            <AppSelect Value="@refundAccountId"
+                       ValueChanged="@(v => refundAccountId = v)"
+                       Options="@HistoryDeleteAccountOptions" />
+        </ChildContent>
+        <FooterContent>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-primary" style="background:#e74c3c;" @onclick="ExecuteDelete" disabled="@isDeleting">@(isDeleting ? "Deleting..." : "Delete")</button>
-                <button class="btn-trans" @onclick="() => isDeleteModalVisible = false">Cancel</button>
+                <AppButton Text="Delete"
+                           LoadingText="Deleting..."
+                           IsLoading="@isDeleting"
+                           Disabled="@isDeleting"
+                           Style="background:#e74c3c; color:white;"
+                           OnClick="@(async _ => await ExecuteDelete())" />
+                <AppButton Text="Cancel"
+                           Variant="ghost"
+                           OnClick="@(_ => { isDeleteModalVisible = false; return Task.CompletedTask; })" />
             </div>
-        </div>
-    </div>
+        </FooterContent>
+    </AppModal>
 }
 
 <style>
@@ -165,6 +173,14 @@
 
     // 🔥 Filter Vars
     string selectedMonthStr = DateTime.Now.ToString("yyyy-MM");
+
+    IEnumerable<KeyValuePair<string, string>> HistoryEditAccountOptions =>
+        new[] { new KeyValuePair<string, string>("", "Don't Change Balance (Text Only)") }
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? "Account")));
+
+    IEnumerable<KeyValuePair<string, string>> HistoryDeleteAccountOptions =>
+        new[] { new KeyValuePair<string, string>("", "Just Delete (No Refund)") }
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? "Account")));
 
     protected override async Task OnInitializedAsync()
     {

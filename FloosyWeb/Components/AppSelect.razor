@@ -1,0 +1,24 @@
+<select class="input-dark @Class"
+        style="@Style"
+        value="@Value"
+        aria-label="@AriaLabel"
+        @onchange="HandleChange">
+    @foreach (var option in Options)
+    {
+        <option value="@option.Key">@option.Value</option>
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<KeyValuePair<string, string>> Options { get; set; } = Enumerable.Empty<KeyValuePair<string, string>>();
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public string AriaLabel { get; set; } = "";
+
+    async Task HandleChange(ChangeEventArgs e)
+    {
+        await ValueChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    }
+}

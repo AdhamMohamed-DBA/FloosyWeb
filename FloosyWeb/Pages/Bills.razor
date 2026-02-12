@@ -7,34 +7,35 @@
 
     <div class="section-header" style="margin-bottom:20px;">
         <h3 style="margin:0;">Bills 🧾</h3>
-        <button class="btn-info btn-auto" style="font-size:12px;" @onclick="() => isResetConfirmVisible = true" aria-label="Start a new month and reset recurring bills">
-            🔄 New Month
-        </button>
+        <AppButton Text="New Month"
+                   Icon="🔄"
+                   Style="font-size:12px; width:auto; background:#3498db; color:white;"
+                   AriaLabel="Start a new month and reset recurring bills"
+                   OnClick="@(_ => { isResetConfirmVisible = true; return Task.CompletedTask; })" />
     </div>
 
     <div class="card" style="padding:15px; margin-bottom:25px;">
         <h4 style="color:#00E676; margin-top:0;">@(isEditMode ? "Edit Bill" : "New Bill")</h4>
 
-        <input @bind="currentBill.Name" placeholder="Bill Name" class="input-dark" aria-label="Bill name" />
+        <AppInput Value="@(currentBill.Name ?? string.Empty)"
+                  ValueChanged="@(v => currentBill.Name = v)"
+                  Placeholder="Bill Name"
+                  AriaLabel="Bill name" />
         <input type="number" @bind="currentBill.Amount" placeholder="Amount" class="input-dark" aria-label="Bill amount" />
 
         <div style="display:flex; gap:5px;">
-            <select @bind="currentBill.Category" class="input-dark" style="flex:1;">
-                @foreach (var c in myData.BillCategories)
-                {
-                    <option value="@c">@c</option>
-                }
-            </select>
+            <AppSelect Value="@currentBill.Category"
+                       ValueChanged="@(v => currentBill.Category = v)"
+                       Options="@BillCategoryOptions"
+                       Style="flex:1;" />
             <button class="icon-btn" style="background:#333; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true" aria-label="Manage bill categories" title="Manage bill categories">⚙️</button>
         </div>
 
         <div style="display:flex; gap:5px;">
-            <select @bind="currentBill.Frequency" class="input-dark" style="flex:1;">
-                <option>OneTime</option>
-                <option>Monthly</option>
-                <option>Quarterly</option>
-                <option>Yearly</option>
-            </select>
+            <AppSelect Value="@currentBill.Frequency"
+                       ValueChanged="@(v => currentBill.Frequency = v)"
+                       Options="@FrequencyOptions"
+                       Style="flex:1;" />
             <input type="date" @bind="currentBill.DueDate" class="input-dark" style="flex:1;" />
         </div>
 
@@ -50,7 +51,12 @@
             }
         </div>
 
-        <button class="btn-primary" style="width:100%;" @onclick="SaveBill" disabled="@isSavingBill">@(isSavingBill ? "Saving..." : (isEditMode ? "Update Bill" : "Add Bill"))</button>
+        <AppButton Text="@(isEditMode ? "Update Bill" : "Add Bill")"
+                   LoadingText="Saving..."
+                   IsLoading="@isSavingBill"
+                   Disabled="@isSavingBill"
+                   Style="width:100%;"
+                   OnClick="@(async _ => await SaveBill())" />
         @if (isEditMode)
         {
             <button class="btn-trans" style="width:100%; margin-top:5px;" @onclick="CancelEdit">Cancel Edit</button>
@@ -164,12 +170,9 @@
             <h3>Pay Bill</h3>
             <p>@selectedBillToPay?.Name - @selectedBillToPay?.Amount.ToString("N2")</p>
             <label>From Account:</label>
-            <select @bind="payFromAccountId" class="input-dark">
-                @foreach (var acc in myData.Accounts)
-                {
-                    <option value="@acc.Id">@acc.Name (@acc.Balance.ToString("N0"))</option>
-                }
-            </select>
+            <AppSelect Value="@payFromAccountId"
+                       ValueChanged="@(v => payFromAccountId = v)"
+                       Options="@PayAccountOptions" />
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button class="btn-primary" @onclick="ConfirmPayBill" disabled="@isPayingBill">@(isPayingBill ? "Processing..." : "Pay")</button>
                 <button class="btn-trans" @onclick="() => isPayModalVisible = false">Cancel</button>
@@ -276,6 +279,16 @@
     string newCatName = "";
     Bill? selectedBillToPay;
     string payFromAccountId = "";
+
+    IEnumerable<KeyValuePair<string, string>> BillCategoryOptions =>
+        myData.BillCategories.Select(c => new KeyValuePair<string, string>(c, c));
+
+    IEnumerable<KeyValuePair<string, string>> FrequencyOptions =>
+        new[] { "OneTime", "Monthly", "Quarterly", "Yearly" }
+            .Select(f => new KeyValuePair<string, string>(f, f));
+
+    IEnumerable<KeyValuePair<string, string>> PayAccountOptions =>
+        myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, $"{a.Name} ({a.Balance:N0})"));
 
     protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
 
