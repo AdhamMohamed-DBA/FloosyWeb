@@ -1,5 +1,5 @@
 self.assetsManifest = {
-  "version": "VYIUtj1q",
+  "version": "39UcwQqi",
   "assets": [
     {
       "hash": "sha256-cVAxLiUb8qzzOCkXKHPqqYyCUTBYWMeHuxWMBiceDLc=",
@@ -14,8 +14,8 @@ self.assetsManifest = {
       "url": "_framework/Firebase.t4bnb5qp2s.wasm"
     },
     {
-      "hash": "sha256-fc3sSxFaBiPIHui8gan6iSlbxCjarntDMHVPoi4QoDM=",
-      "url": "_framework/FloosyWeb.zwyj7tww7j.wasm"
+      "hash": "sha256-C4iHUQpv0fobWDGQHtYhAcS9FAY2t3e9iKxdXroSDTY=",
+      "url": "_framework/FloosyWeb.75duq4s97s.wasm"
     },
     {
       "hash": "sha256-pxLAT04Ri3sXh90k2oyjIWa23sypM4IByhgj1e5eOjA=",
@@ -274,7 +274,7 @@ self.assetsManifest = {
       "url": "_framework/blazor.webassembly.js"
     },
     {
-      "hash": "sha256-4mW0Gt4o+gxjIFx+YY53ObYIBUthv4yPG79OYTTCVfs=",
+      "hash": "sha256-O0nwmIDXNn+Pzs0RI96cMQoaT+wPWhH8wWqdNLm+13k=",
       "url": "_framework/dotnet.js"
     },
     {
@@ -314,7 +314,7 @@ self.assetsManifest = {
       "url": "biometric.js"
     },
     {
-      "hash": "sha256-QTmvcVObrYDdqHQsFbquPQ39Yy6xiDTIKNYMvCy+bi4=",
+      "hash": "sha256-b+gutcArJFZKPC6Obesnj765LuvjQ6VHP321npklSDs=",
       "url": "css/app.css"
     },
     {
