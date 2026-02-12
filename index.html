@@ -72,6 +72,35 @@
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
         window.scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+        window.floosyAppUpdateNow = async () => {
+            try {
+                if (!('serviceWorker' in navigator)) {
+                    window.location.reload();
+                    return;
+                }
+
+                const reg = await navigator.serviceWorker.getRegistration();
+                if (reg) {
+                    await reg.update();
+
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+
+                    if (reg.installing) {
+                        reg.installing.addEventListener('statechange', () => {
+                            if (reg.waiting) {
+                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    }
+                }
+            } catch {
+                // ignore and force reload below
+            }
+
+            setTimeout(() => window.location.reload(), 150);
+        };
     </script>
 
     <script src="biometric.js"></script>
