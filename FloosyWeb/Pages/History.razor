@@ -159,29 +159,35 @@
     async Task SaveEdit()
     {
         isSavingEdit = true;
-        if (!string.IsNullOrEmpty(editAccountId))
+        try
         {
-            var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
-            if (acc != null)
+            if (!string.IsNullOrEmpty(editAccountId))
             {
-                // Revert old effect
-                bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
-                if (wasIncome) acc.Balance -= oldAmount; else acc.Balance += oldAmount;
+                var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
+                if (acc != null)
+                {
+                    // Revert old effect
+                    bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                    if (wasIncome) acc.Balance -= oldAmount; else acc.Balance += oldAmount;
 
-                // Apply new effect
-                // Note: We assume user didn't change sign logic here, just amount.
-                // Ideally, edit should allow changing Income/Expense type too, but for simplicity:
-                if (wasIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+                    // Apply new effect
+                    // Note: We assume user didn't change sign logic here, just amount.
+                    // Ideally, edit should allow changing Income/Expense type too, but for simplicity:
+                    if (wasIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+                }
             }
+
+            // Update Display String
+            bool isPos = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+            selectedTrans.AmountDisplay = (isPos ? "+" : "-") + selectedTrans.Amount.ToString("N2");
+
+            await Firebase.Save(myData);
+            isEditVisible = false;
         }
-
-        // Update Display String
-        bool isPos = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
-        selectedTrans.AmountDisplay = (isPos ? "+" : "-") + selectedTrans.Amount.ToString("N2");
-
-        await Firebase.Save(myData);
-        isEditVisible = false;
-        isSavingEdit = false;
+        finally
+        {
+            isSavingEdit = false;
+        }
     }
 
     void ConfirmDelete(Transaction t)
@@ -193,18 +199,25 @@
     async Task ExecuteDelete()
     {
         isDeleting = true;
-        if (!string.IsNullOrEmpty(refundAccountId))
+        try
         {
-            var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
-            if (acc != null)
+            if (!string.IsNullOrEmpty(refundAccountId))
             {
-                bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
-                if (isIncome) acc.Balance -= selectedTrans.Amount; else acc.Balance += selectedTrans.Amount;
+                var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
+                if (acc != null)
+                {
+                    bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                    if (isIncome) acc.Balance -= selectedTrans.Amount; else acc.Balance += selectedTrans.Amount;
+                }
             }
+
+            myData.History.Remove(selectedTrans);
+            await Firebase.Save(myData);
+            isDeleteModalVisible = false;
         }
-        myData.History.Remove(selectedTrans);
-        await Firebase.Save(myData);
-        isDeleteModalVisible = false;
-        isDeleting = false;
+        finally
+        {
+            isDeleting = false;
+        }
     }
 }

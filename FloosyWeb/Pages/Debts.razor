@@ -390,62 +390,67 @@
             return;
 
         isSavingPerson = true;
-
-        if (!myData.SavedContactNames.Any(x => string.Equals(x, normalizedName, StringComparison.OrdinalIgnoreCase)))
+        try
         {
-            myData.SavedContactNames.Add(normalizedName);
-        }
-
-        if (editingPerson == null)
-        {
-            var p = new Person { Name = normalizedName };
-            myData.People.Add(p);
-
-            // Optional initial debt on create (only affects remaining debt + people history)
-            if (initialAmount > 0)
+            if (!myData.SavedContactNames.Any(x => string.Equals(x, normalizedName, StringComparison.OrdinalIgnoreCase)))
             {
-                var amount = initialAmount;
+                myData.SavedContactNames.Add(normalizedName);
+            }
 
-                if (initialTheyOweMe)
+            if (editingPerson == null)
+            {
+                var p = new Person { Name = normalizedName };
+                myData.People.Add(p);
+
+                // Optional initial debt on create (only affects remaining debt + people history)
+                if (initialAmount > 0)
                 {
-                    // You are owed this amount (remaining starts here)
-                    p.Balance = amount;
+                    var amount = initialAmount;
 
-                    myData.PeopleHistory.Add(new PersonTransaction
+                    if (initialTheyOweMe)
                     {
-                        PersonId = p.Id,
-                        PersonName = p.Name,
-                        Amount = amount,
-                        IsFromPerson = false, // original direction does not affect remaining logic
-                        Note = initialNote,
-                        Date = initialDate
-                    });
-                }
-                else
-                {
-                    // You owe them this amount (remaining you must pay)
-                    p.Balance = amount;
+                        // You are owed this amount (remaining starts here)
+                        p.Balance = amount;
 
-                    myData.PeopleHistory.Add(new PersonTransaction
+                        myData.PeopleHistory.Add(new PersonTransaction
+                        {
+                            PersonId = p.Id,
+                            PersonName = p.Name,
+                            Amount = amount,
+                            IsFromPerson = false, // original direction does not affect remaining logic
+                            Note = initialNote,
+                            Date = initialDate
+                        });
+                    }
+                    else
                     {
-                        PersonId = p.Id,
-                        PersonName = p.Name,
-                        Amount = amount,
-                        IsFromPerson = true,
-                        Note = initialNote,
-                        Date = initialDate
-                    });
+                        // You owe them this amount (remaining you must pay)
+                        p.Balance = amount;
+
+                        myData.PeopleHistory.Add(new PersonTransaction
+                        {
+                            PersonId = p.Id,
+                            PersonName = p.Name,
+                            Amount = amount,
+                            IsFromPerson = true,
+                            Note = initialNote,
+                            Date = initialDate
+                        });
+                    }
                 }
             }
-        }
-        else
-        {
-            editingPerson.Name = normalizedName;
-        }
+            else
+            {
+                editingPerson.Name = normalizedName;
+            }
 
-        await Firebase.Save(myData);
-        isPersonModalVisible = false;
-        isSavingPerson = false;
+            await Firebase.Save(myData);
+            isPersonModalVisible = false;
+        }
+        finally
+        {
+            isSavingPerson = false;
+        }
     }
 
     async Task DeletePerson()
@@ -599,71 +604,76 @@
 
         isSavingMove = true;
 
-        var acc = myData.Accounts.FirstOrDefault(a => a.Id == selectedAccountId);
-        if (acc == null)
+        try
+        {
+            var acc = myData.Accounts.FirstOrDefault(a => a.Id == selectedAccountId);
+            if (acc == null)
+            {
+                return;
+            }
+
+            var amount = moveAmount;
+
+            // Always reduce remaining debt (from 5500 -> 3500, etc.)
+            selectedPerson.Balance -= amount;
+
+            Transaction t;
+
+            if (isFromPerson)
+            {
+                // Money from person -> your account (they pay you)
+                acc.Balance += amount;
+
+                t = new Transaction
+                {
+                    Desc = string.IsNullOrEmpty(moveNote)
+                        ? $"From {selectedPerson.Name}"
+                        : $"From {selectedPerson.Name} - {moveNote}",
+                    Category = "Debts",
+                    Amount = amount,
+                    AmountDisplay = $"+{amount:N2}",
+                    ColorHex = "#2ecc71",
+                    Date = moveDate
+                };
+            }
+            else
+            {
+                // Money from your account -> person (you pay them)
+                acc.Balance -= amount;
+
+                t = new Transaction
+                {
+                    Desc = string.IsNullOrEmpty(moveNote)
+                        ? $"To {selectedPerson.Name}"
+                        : $"To {selectedPerson.Name} - {moveNote}",
+                    Category = "Debts",
+                    Amount = amount,
+                    AmountDisplay = $"-{amount:N2}",
+                    ColorHex = "#e74c3c",
+                    Date = moveDate
+                };
+            }
+
+            myData.History.Add(t);
+
+            myData.PeopleHistory.Add(new PersonTransaction
+            {
+                PersonId = selectedPerson.Id,
+                PersonName = selectedPerson.Name,
+                Amount = amount,
+                IsFromPerson = isFromPerson,
+                Note = moveNote,
+                Date = moveDate,
+                TransactionId = t.Id
+            });
+
+            await Firebase.Save(myData);
+            isMoveModalVisible = false;
+        }
+        finally
         {
             isSavingMove = false;
-            return;
         }
-
-        var amount = moveAmount;
-
-        // Always reduce remaining debt (from 5500 -> 3500, etc.)
-        selectedPerson.Balance -= amount;
-
-        Transaction t;
-
-        if (isFromPerson)
-        {
-            // Money from person -> your account (they pay you)
-            acc.Balance += amount;
-
-            t = new Transaction
-            {
-                Desc = string.IsNullOrEmpty(moveNote)
-                    ? $"From {selectedPerson.Name}"
-                    : $"From {selectedPerson.Name} - {moveNote}",
-                Category = "Debts",
-                Amount = amount,
-                AmountDisplay = $"+{amount:N2}",
-                ColorHex = "#2ecc71",
-                Date = moveDate
-            };
-        }
-        else
-        {
-            // Money from your account -> person (you pay them)
-            acc.Balance -= amount;
-
-            t = new Transaction
-            {
-                Desc = string.IsNullOrEmpty(moveNote)
-                    ? $"To {selectedPerson.Name}"
-                    : $"To {selectedPerson.Name} - {moveNote}",
-                Category = "Debts",
-                Amount = amount,
-                AmountDisplay = $"-{amount:N2}",
-                ColorHex = "#e74c3c",
-                Date = moveDate
-            };
-        }
-
-        myData.History.Add(t);
-
-        myData.PeopleHistory.Add(new PersonTransaction
-        {
-            PersonId = selectedPerson.Id,
-            PersonName = selectedPerson.Name,
-            Amount = amount,
-            IsFromPerson = isFromPerson,
-            Note = moveNote,
-            Date = moveDate,
-            TransactionId = t.Id
-        });
-
-        isSavingMove = false;
-        await Firebase.Save(myData);
-        isMoveModalVisible = false;
     }
 
     string GetPersonBalanceDisplay(Person p)
@@ -744,6 +754,7 @@
         </div>
     </div>
 }
+
 
 
 

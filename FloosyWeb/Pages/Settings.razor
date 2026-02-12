@@ -109,7 +109,7 @@
         </a>
     </div>
 
-    <button class="btn-logout" style="margin-top:20px;" @onclick="SignOut">Sign Out</button>
+    <button class="btn-logout" style="margin-top:20px;" @onclick="@(async () => await SignOut())">Sign Out</button>
 </div>
 
 @if (isMessageVisible)
@@ -340,7 +340,7 @@
         }
     }
 
-    async void SignOut()
+    async Task SignOut()
     {
         try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
         Firebase.SignOut();
