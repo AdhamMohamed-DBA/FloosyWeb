@@ -16,17 +16,17 @@
         <h3 style="color:white; margin-bottom:20px;">Welcome Back!</h3>
         <input @bind="email" placeholder="Email" class="input-dark" />
 
-        <div class="password-wrapper">
-            <input @bind="password" type="@passwordType" placeholder="Password" class="input-dark" />
-            <span class="toggle-icon" @onclick="TogglePassword">
-                @(showPassword ? "🙈" : "👁️")
-            </span>
-        </div>
+        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="Password" class="input-dark" />
 
         <!-- 🔒 SECURITY FIX: Remember Me now only saves email, NOT password -->
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; color:#ccc; cursor:pointer;" @onclick="() => rememberMe = !rememberMe">
             <input type="checkbox" @bind="rememberMe" style="width:20px; height:20px; cursor:pointer; accent-color:#00E676;" />
             <span style="font-size:14px; user-select:none;">Remember Email</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; color:#ccc; cursor:pointer;" @onclick="() => showPassword = !showPassword">
+            <input type="checkbox" @bind="showPassword" style="width:20px; height:20px; cursor:pointer; accent-color:#00E676;" />
+            <span style="font-size:14px; user-select:none;">Show Password</span>
         </div>
 
         <button class="btn-primary" @onclick="DoLogin">Login</button>
@@ -49,12 +49,7 @@
         <input @bind="newName" placeholder="Full Name" class="input-dark" />
         <input @bind="email" placeholder="Email" class="input-dark" />
 
-        <div class="password-wrapper">
-            <input @bind="password" type="@passwordType" placeholder="Password (min 6 characters)" class="input-dark" />
-            <span class="toggle-icon" @onclick="TogglePassword">
-                @(showPassword ? "🙈" : "👁️")
-            </span>
-        </div>
+        <input @bind="password" type="@(showPassword ? "text" : "password")" placeholder="Password (min 6 characters)" class="input-dark" />
 
         <button class="btn-primary" @onclick="DoRegister">Sign Up</button>
         <button class="btn-link" style="width:100%; margin-top:10px;" @onclick="() => mode = 0">Back to Login</button>
@@ -88,25 +83,6 @@
         min-height: 100vh;
         max-width: 400px;
         margin: 0 auto;
-    }
-
-    .password-wrapper {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        margin-bottom: 15px;
-    }
-
-        .password-wrapper .input-dark {
-            flex: 1;
-            margin-bottom: 0;
-        }
-
-    .toggle-icon {
-        margin-left: 8px;
-        cursor: pointer;
-        font-size: 18px;
-        user-select: none;
     }
 
     .input-dark {
@@ -193,7 +169,6 @@
     string email = "", password = "", newName = "";
     bool rememberMe = false;
     bool showPassword = false;
-    string passwordType = "password";
 
     bool isMessageVisible = false;
     string messageTitle = "", messageBody = "", messageType = "Error";
@@ -203,12 +178,6 @@
     void ShowMessage(string title, string body, string type = "Error")
     {
         messageTitle = title; messageBody = body; messageType = type; isMessageVisible = true;
-    }
-
-    void TogglePassword()
-    {
-        showPassword = !showPassword;
-        passwordType = showPassword ? "text" : "password";
     }
 
     protected override async Task OnInitializedAsync()
