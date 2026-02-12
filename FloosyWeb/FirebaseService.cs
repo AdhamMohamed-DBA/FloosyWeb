@@ -178,8 +178,8 @@ public class FirebaseService
     public async Task Save(AppData data)
     {
         if (string.IsNullOrEmpty(CurrentUserId)) return;
-        // الحفظ تحت مسار Users/{uid} لتوافق الـ Rules الجديدة
-        await db.Child("Users").Child(CurrentUserId).PutAsync(data);
+        // Patch instead of Put to avoid overriding protected fields like Users/{uid}/IsAdmin
+        await db.Child("Users").Child(CurrentUserId).PatchAsync(data);
     }
 
     public async Task<AppData> Load()
@@ -187,6 +187,42 @@ public class FirebaseService
         if (string.IsNullOrEmpty(CurrentUserId)) return new AppData();
         var data = await db.Child("Users").Child(CurrentUserId).OnceSingleAsync<AppData>();
         return data ?? new AppData { Accounts = [new Account { Name = "Cash", Balance = 0 }] };
+    }
+
+    public async Task<bool> IsCurrentUserAdmin()
+    {
+        if (string.IsNullOrEmpty(CurrentUserId)) return false;
+
+        try
+        {
+            var isAdmin = await db.Child("Users").Child(CurrentUserId).Child("IsAdmin").OnceSingleAsync<bool?>();
+            return isAdmin == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<UpdateBroadcast> LoadUpdateBroadcast()
+    {
+        if (string.IsNullOrEmpty(CurrentUserId)) return new UpdateBroadcast();
+
+        try
+        {
+            return await db.Child("Global").Child("UpdateBroadcast").OnceSingleAsync<UpdateBroadcast>() ?? new UpdateBroadcast();
+        }
+        catch
+        {
+            return new UpdateBroadcast();
+        }
+    }
+
+    public async Task SaveUpdateBroadcast(UpdateBroadcast broadcast)
+    {
+        if (string.IsNullOrEmpty(CurrentUserId)) throw new InvalidOperationException("Not Logged In");
+
+        await db.Child("Global").Child("UpdateBroadcast").PutAsync(broadcast);
     }
 
     public async Task UpdateUserName(string newName)

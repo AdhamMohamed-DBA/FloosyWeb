@@ -19,10 +19,18 @@ public class AppData
 
     public int FinancialStartDay { get; set; } = 1;
 
-    // Global update announcement controls
+    // Legacy (kept for backward compatibility with old saved payloads)
     public string UpdateVersion { get; set; } = "";
     public string UpdateMessage { get; set; } = "";
     public bool IsUpdateRequired { get; set; } = false;
+}
+
+public class UpdateBroadcast
+{
+    public string Version { get; set; } = "";
+    public string Message { get; set; } = "";
+    public bool IsRequired { get; set; } = false;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class Account

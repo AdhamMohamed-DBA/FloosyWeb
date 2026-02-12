@@ -82,16 +82,16 @@
     {
         if (string.IsNullOrEmpty(Firebase.CurrentUserId)) return;
 
-        var data = await Firebase.Load();
-        if (!data.IsUpdateRequired) return;
-        if (string.IsNullOrWhiteSpace(data.UpdateVersion) || string.IsNullOrWhiteSpace(data.UpdateMessage)) return;
+        var update = await Firebase.LoadUpdateBroadcast();
+        if (!update.IsRequired) return;
+        if (string.IsNullOrWhiteSpace(update.Version) || string.IsNullOrWhiteSpace(update.Message)) return;
 
         var key = $"floosy_seen_update_{Firebase.CurrentUserId}";
         var seenVersion = await JS.InvokeAsync<string>("localStorage.getItem", key);
-        if (string.Equals(seenVersion, data.UpdateVersion, StringComparison.OrdinalIgnoreCase)) return;
+        if (string.Equals(seenVersion, update.Version, StringComparison.OrdinalIgnoreCase)) return;
 
-        activeUpdateVersion = data.UpdateVersion;
-        activeUpdateMessage = data.UpdateMessage;
+        activeUpdateVersion = update.Version;
+        activeUpdateMessage = update.Message;
         isUpdateNoticeVisible = true;
         await InvokeAsync(StateHasChanged);
     }

@@ -109,31 +109,34 @@
         </a>
     </div>
 
-    <div class="setting-card">
-        <label>Update Broadcast</label>
-        <div class="input-stack">
-            <AppInput Value="@updateVersionInput"
-                      ValueChanged="@(v => updateVersionInput = v)"
-                      Placeholder="Version (e.g. 2.4.0)" />
+    @if (isCurrentUserAdmin)
+    {
+        <div class="setting-card">
+            <label>Update Broadcast</label>
+            <div class="input-stack">
+                <AppInput Value="@updateVersionInput"
+                          ValueChanged="@(v => updateVersionInput = v)"
+                          Placeholder="Version (e.g. 2.4.0)" />
 
-            <textarea @bind="updateMessageInput"
-                      class="input-dark"
-                      rows="4"
-                      placeholder="Write what's new message..."></textarea>
+                <textarea @bind="updateMessageInput"
+                          class="input-dark"
+                          rows="4"
+                          placeholder="Write what's new message..."></textarea>
 
-            <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px 0;">
-                <input type="checkbox" @bind="isUpdateRequiredInput" style="width:16px; height:16px; accent-color:#00E676;" />
-                <span style="color:#ccc; font-size:12px;">Show update popup once per user for this version</span>
+                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px 0;">
+                    <input type="checkbox" @bind="isUpdateRequiredInput" style="width:16px; height:16px; accent-color:#00E676;" />
+                    <span style="color:#ccc; font-size:12px;">Show update popup once per user for this version</span>
+                </div>
+
+                <AppButton Text="Save Update Message"
+                           LoadingText="Saving..."
+                           IsLoading="@isSavingUpdateNotice"
+                           Disabled="@isSavingUpdateNotice"
+                           Style="width:100%;"
+                           OnClick="@(async _ => await SaveUpdateNotice())" />
             </div>
-
-            <AppButton Text="Save Update Message"
-                       LoadingText="Saving..."
-                       IsLoading="@isSavingUpdateNotice"
-                       Disabled="@isSavingUpdateNotice"
-                       Style="width:100%;"
-                       OnClick="@(async _ => await SaveUpdateNotice())" />
         </div>
-    </div>
+    }
 
     <button class="btn-logout" style="margin-top:20px;" @onclick="@(async () => await SignOut())">Sign Out</button>
 </div>
@@ -196,6 +199,7 @@
     bool isUpdatingName = false;
     bool isUpdatingPassword = false;
     bool isSavingUpdateNotice = false;
+    bool isCurrentUserAdmin = false;
 
     string updateVersionInput = "";
     string updateMessageInput = "";
@@ -215,9 +219,14 @@
         newName = Firebase.GetUserName();
         userEmail = Firebase.UserEmail ?? "No Email";
 
-        updateVersionInput = myData.UpdateVersion;
-        updateMessageInput = myData.UpdateMessage;
-        isUpdateRequiredInput = myData.IsUpdateRequired;
+        isCurrentUserAdmin = await Firebase.IsCurrentUserAdmin();
+        if (isCurrentUserAdmin)
+        {
+            var broadcast = await Firebase.LoadUpdateBroadcast();
+            updateVersionInput = broadcast.Version;
+            updateMessageInput = broadcast.Message;
+            isUpdateRequiredInput = broadcast.IsRequired;
+        }
 
         try
         {
@@ -343,6 +352,12 @@
         isSavingUpdateNotice = true;
         try
         {
+            if (!await Firebase.IsCurrentUserAdmin())
+            {
+                ShowMessage("Error", "Unauthorized.", "Error");
+                return;
+            }
+
             updateVersionInput = (updateVersionInput ?? "").Trim();
             updateMessageInput = (updateMessageInput ?? "").Trim();
 
@@ -361,11 +376,13 @@
                 }
             }
 
-            myData.UpdateVersion = updateVersionInput;
-            myData.UpdateMessage = updateMessageInput;
-            myData.IsUpdateRequired = isUpdateRequiredInput;
-
-            await Firebase.Save(myData);
+            await Firebase.SaveUpdateBroadcast(new UpdateBroadcast
+            {
+                Version = updateVersionInput,
+                Message = updateMessageInput,
+                IsRequired = isUpdateRequiredInput,
+                UpdatedAt = DateTime.UtcNow
+            });
             ShowMessage("Success", "Update broadcast saved.", "Success");
         }
         finally
