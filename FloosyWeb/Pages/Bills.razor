@@ -46,8 +46,41 @@
             </div>
             @if (currentBill.IsShared)
             {
-                <input @bind="currentBill.SharedWith" class="input-dark" placeholder="Who with? (e.g., Ahmed)" style="margin-bottom:5px;" />
-                <input @bind="currentBill.Notes" class="input-dark" placeholder="Who Paid? (e.g., I paid 50%)" style="margin-bottom:0;" />
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                    <input @bind="newParticipantName" class="input-dark" placeholder="Person Name" style="margin-bottom:0;" />
+                    <input type="number" @bind="newParticipantAmount" class="input-dark" placeholder="Amount" style="max-width:120px; margin-bottom:0;" />
+                    <AppButton Text="+"
+                               Style="width:auto; min-width:44px; margin-bottom:0;"
+                               AriaLabel="Add shared participant"
+                               OnClick="@(_ => { AddParticipantToCurrentBill(); return Task.CompletedTask; })" />
+                </div>
+
+                @if (currentBill.Participants.Any())
+                {
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
+                        @foreach (var p in currentBill.Participants)
+                        {
+                            <div style="display:flex; align-items:center; gap:8px; background:#242424; padding:8px; border-radius:8px;">
+                                <input type="checkbox"
+                                       checked="@p.IsPaid"
+                                       @onchange="@(e => OnCurrentParticipantPaidChanged(p, e))"
+                                       style="width:18px; height:18px; accent-color:#00E676; margin:0;" />
+                                <span style="flex:1; color:white;">@p.Name</span>
+                                <span style="color:@(p.IsPaid ? "#2ecc71" : "#ffcc66"); font-size:12px;">@p.Amount.ToString("N2")</span>
+                                <button class="icon-btn"
+                                        style="font-size:13px; color:#e74c3c;"
+                                        @onclick="@(() => RemoveParticipantFromCurrentBill(p.Id))"
+                                        aria-label="Remove participant"
+                                        title="Remove participant">🗑️</button>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size:12px; color:#aaa;">
+                        Paid: <span style="color:#2ecc71;">@CurrentSharedPaidTotal.ToString("N2")</span>
+                        • Remaining: <span style="color:#ffcc66;">@CurrentSharedRemainingTotal.ToString("N2")</span>
+                    </div>
+                }
             }
         </div>
 
@@ -85,8 +118,31 @@
                 @if (bill.IsShared)
                 {
                     <div style="margin-top:8px; padding-top:8px; border-top:1px solid #333; font-size:0.8em; color:#bbb;">
-                        <div>👥 <b>With:</b> @bill.SharedWith</div>
-                        <div>📝 <b>Status:</b> @bill.Notes</div>
+                        @if (bill.Participants.Any())
+                        {
+                            @foreach (var p in bill.Participants)
+                            {
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                                    <div style="display:flex; align-items:center; gap:6px;" @onclick:stopPropagation="true">
+                                        <input type="checkbox"
+                                               checked="@p.IsPaid"
+                                               @onchange="@(async e => await ToggleParticipantPaidOnCard(bill, p, e))"
+                                               style="width:16px; height:16px; accent-color:#00E676; margin:0;" />
+                                        <span>@p.Name</span>
+                                    </div>
+                                    <span style="color:@(p.IsPaid ? "#2ecc71" : "#ffcc66")">@p.Amount.ToString("N2")</span>
+                                </div>
+                            }
+
+                            <div style="margin-top:6px; color:#aaa;">
+                                ✅ Paid: @GetParticipantsPaidTotal(bill).ToString("N2") • ⏳ Remaining: @GetParticipantsRemainingTotal(bill).ToString("N2")
+                            </div>
+                        }
+                        else
+                        {
+                            <div>👥 <b>With:</b> @bill.SharedWith</div>
+                            <div>📝 <b>Status:</b> @bill.Notes</div>
+                        }
                     </div>
                 }
             </div>
@@ -240,6 +296,8 @@
     bool isResetConfirmVisible = false;
 
     string newCatName = "";
+    string newParticipantName = "";
+    decimal newParticipantAmount = 0;
     Bill? selectedBillToPay;
     string payFromAccountId = "";
 
@@ -253,10 +311,20 @@
     IEnumerable<KeyValuePair<string, string>> PayAccountOptions =>
         myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, $"{a.Name} ({a.Balance:N0})"));
 
-    protected override async Task OnInitializedAsync() { myData = await Firebase.Load(); if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other"); }
+    protected override async Task OnInitializedAsync()
+    {
+        myData = await Firebase.Load();
+        if (!myData.BillCategories.Any()) myData.BillCategories.Add("Other");
+
+        foreach (var b in myData.Bills)
+        {
+            EnsureBillParticipants(b);
+        }
+    }
 
     async Task EditBill(Bill b)
     {
+        EnsureBillParticipants(b);
         currentBill = b; isEditMode = true;
         await JS.InvokeVoidAsync("window.scrollTo", 0, 0); // Keep Scroll logic, it's UI utility not alert
     }
@@ -268,6 +336,8 @@
         isSavingBill = true;
         try
         {
+            EnsureBillParticipants(currentBill);
+            SyncSharedSummary(currentBill);
             if (!isEditMode) myData.Bills.Add(currentBill);
             await Firebase.Save(myData);
             CancelEdit();
@@ -276,6 +346,82 @@
         {
             isSavingBill = false;
         }
+    }
+
+    void EnsureBillParticipants(Bill bill)
+    {
+        bill.Participants ??= [];
+    }
+
+    void SyncSharedSummary(Bill bill)
+    {
+        if (!bill.IsShared)
+        {
+            bill.SharedWith = "";
+            bill.Notes = "";
+            return;
+        }
+
+        var names = bill.Participants.Select(x => x.Name).Where(x => !string.IsNullOrWhiteSpace(x));
+        bill.SharedWith = string.Join(", ", names);
+
+        var paidNames = bill.Participants.Where(x => x.IsPaid).Select(x => x.Name).Where(x => !string.IsNullOrWhiteSpace(x));
+        bill.Notes = paidNames.Any() ? $"Paid: {string.Join(", ", paidNames)}" : "No one paid yet";
+    }
+
+    decimal CurrentSharedPaidTotal => currentBill.Participants.Where(x => x.IsPaid).Sum(x => x.Amount);
+    decimal CurrentSharedRemainingTotal => currentBill.Participants.Where(x => !x.IsPaid).Sum(x => x.Amount);
+
+    decimal GetParticipantsPaidTotal(Bill bill) => bill.Participants.Where(x => x.IsPaid).Sum(x => x.Amount);
+    decimal GetParticipantsRemainingTotal(Bill bill) => bill.Participants.Where(x => !x.IsPaid).Sum(x => x.Amount);
+
+    void AddParticipantToCurrentBill()
+    {
+        if (!currentBill.IsShared) return;
+
+        var name = (newParticipantName ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (newParticipantAmount <= 0) return;
+
+        EnsureBillParticipants(currentBill);
+
+        currentBill.Participants.Add(new BillParticipant
+        {
+            Name = name,
+            Amount = newParticipantAmount,
+            IsPaid = false
+        });
+
+        newParticipantName = "";
+        newParticipantAmount = 0;
+        SyncSharedSummary(currentBill);
+    }
+
+    void RemoveParticipantFromCurrentBill(string participantId)
+    {
+        EnsureBillParticipants(currentBill);
+        var p = currentBill.Participants.FirstOrDefault(x => x.Id == participantId);
+        if (p == null) return;
+
+        currentBill.Participants.Remove(p);
+        SyncSharedSummary(currentBill);
+    }
+
+    void OnCurrentParticipantPaidChanged(BillParticipant participant, ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool b && b;
+        participant.IsPaid = isChecked;
+        participant.PaidAt = isChecked ? DateTime.Now : null;
+        SyncSharedSummary(currentBill);
+    }
+
+    async Task ToggleParticipantPaidOnCard(Bill bill, BillParticipant participant, ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool b && b;
+        participant.IsPaid = isChecked;
+        participant.PaidAt = isChecked ? DateTime.Now : null;
+        SyncSharedSummary(bill);
+        await Firebase.Save(myData);
     }
 
     // 🔥 Delete Logic replaced with Modal

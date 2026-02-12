@@ -1,12 +1,28 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
 @inject FirebaseService Firebase
+@inject IJSRuntime JS
 
 <div class="page-shell">
     <main class="page-content">
         @Body
     </main>
 </div>
+
+@if (isUpdateNoticeVisible)
+{
+    <AppModal Visible="@isUpdateNoticeVisible" Title="App Updated">
+        <ChildContent>
+            <p style="color:#bbb; font-size:12px; margin-top:0;">Version: <b>@activeUpdateVersion</b></p>
+            <p style="color:#fff; white-space:pre-wrap;">@activeUpdateMessage</p>
+        </ChildContent>
+        <FooterContent>
+            <AppButton Text="OK"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await AcknowledgeUpdateNotice())" />
+        </FooterContent>
+    </AppModal>
+}
 
 @if (!string.IsNullOrEmpty(Firebase.CurrentUserId) && !Nav.Uri.EndsWith("/") && !Nav.Uri.Contains("/login"))
 {
@@ -39,6 +55,10 @@
 }
 
 @code {
+    bool isUpdateNoticeVisible = false;
+    string activeUpdateVersion = "";
+    string activeUpdateMessage = "";
+
     bool IsActive(string href)
     {
         var relative = Nav.ToBaseRelativePath(Nav.Uri).ToLowerInvariant();
@@ -50,5 +70,40 @@
         // 🔥 تشغيل الدالة دي هنا آمن عشان الـ JS بيكون حمل
         Firebase.InitUser();
         Nav.LocationChanged += (s, e) => StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await TryShowUpdateNoticeAsync();
+    }
+
+    async Task TryShowUpdateNoticeAsync()
+    {
+        if (string.IsNullOrEmpty(Firebase.CurrentUserId)) return;
+
+        var data = await Firebase.Load();
+        if (!data.IsUpdateRequired) return;
+        if (string.IsNullOrWhiteSpace(data.UpdateVersion) || string.IsNullOrWhiteSpace(data.UpdateMessage)) return;
+
+        var key = $"floosy_seen_update_{Firebase.CurrentUserId}";
+        var seenVersion = await JS.InvokeAsync<string>("localStorage.getItem", key);
+        if (string.Equals(seenVersion, data.UpdateVersion, StringComparison.OrdinalIgnoreCase)) return;
+
+        activeUpdateVersion = data.UpdateVersion;
+        activeUpdateMessage = data.UpdateMessage;
+        isUpdateNoticeVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task AcknowledgeUpdateNotice()
+    {
+        if (!string.IsNullOrEmpty(Firebase.CurrentUserId) && !string.IsNullOrWhiteSpace(activeUpdateVersion))
+        {
+            var key = $"floosy_seen_update_{Firebase.CurrentUserId}";
+            await JS.InvokeVoidAsync("localStorage.setItem", key, activeUpdateVersion);
+        }
+
+        isUpdateNoticeVisible = false;
     }
 }

@@ -18,6 +18,11 @@ public class AppData
     public ObservableCollection<string> BillCategories { get; set; } = [];
 
     public int FinancialStartDay { get; set; } = 1;
+
+    // Global update announcement controls
+    public string UpdateVersion { get; set; } = "";
+    public string UpdateMessage { get; set; } = "";
+    public bool IsUpdateRequired { get; set; } = false;
 }
 
 public class Account
@@ -44,6 +49,16 @@ public class Bill
     public bool IsRecurring => Frequency != "OneTime";
     public bool IsShared { get; set; } = false;
     public string SharedWith { get; set; } = "";
+    public ObservableCollection<BillParticipant> Participants { get; set; } = [];
+}
+
+public class BillParticipant
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = "";
+    public decimal Amount { get; set; }
+    public bool IsPaid { get; set; }
+    public DateTime? PaidAt { get; set; }
 }
 
 public class Transaction

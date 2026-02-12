@@ -79,8 +79,34 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js', { scope: './' })
-                .then(reg => console.log('SW Registered!', reg.scope))
+                .then(reg => {
+                    console.log('SW Registered!', reg.scope);
+
+                    // Check updates when app starts
+                    reg.update();
+
+                    // Check periodically while app is open
+                    setInterval(() => reg.update(), 60 * 1000);
+
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        if (!newWorker) return;
+
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                })
                 .catch(err => console.log('SW Failed!', err));
+
+            let isRefreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (isRefreshing) return;
+                isRefreshing = true;
+                window.location.reload();
+            });
         }
     </script>
 

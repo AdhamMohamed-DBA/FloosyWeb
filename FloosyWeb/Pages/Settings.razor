@@ -109,6 +109,32 @@
         </a>
     </div>
 
+    <div class="setting-card">
+        <label>Update Broadcast</label>
+        <div class="input-stack">
+            <AppInput Value="@updateVersionInput"
+                      ValueChanged="@(v => updateVersionInput = v)"
+                      Placeholder="Version (e.g. 2.4.0)" />
+
+            <textarea @bind="updateMessageInput"
+                      class="input-dark"
+                      rows="4"
+                      placeholder="Write what's new message..."></textarea>
+
+            <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px 0;">
+                <input type="checkbox" @bind="isUpdateRequiredInput" style="width:16px; height:16px; accent-color:#00E676;" />
+                <span style="color:#ccc; font-size:12px;">Show update popup once per user for this version</span>
+            </div>
+
+            <AppButton Text="Save Update Message"
+                       LoadingText="Saving..."
+                       IsLoading="@isSavingUpdateNotice"
+                       Disabled="@isSavingUpdateNotice"
+                       Style="width:100%;"
+                       OnClick="@(async _ => await SaveUpdateNotice())" />
+        </div>
+    </div>
+
     <button class="btn-logout" style="margin-top:20px;" @onclick="@(async () => await SignOut())">Sign Out</button>
 </div>
 
@@ -169,6 +195,11 @@
     bool isSavingFinancialDay = false;
     bool isUpdatingName = false;
     bool isUpdatingPassword = false;
+    bool isSavingUpdateNotice = false;
+
+    string updateVersionInput = "";
+    string updateMessageInput = "";
+    bool isUpdateRequiredInput = false;
 
     void ShowMessage(string title, string body, string type = "Info")
     {
@@ -183,6 +214,10 @@
 
         newName = Firebase.GetUserName();
         userEmail = Firebase.UserEmail ?? "No Email";
+
+        updateVersionInput = myData.UpdateVersion;
+        updateMessageInput = myData.UpdateMessage;
+        isUpdateRequiredInput = myData.IsUpdateRequired;
 
         try
         {
@@ -300,6 +335,42 @@
         {
             ShowMessage("Error", res, "Error");
             isDeleteConfirmVisible = false;
+        }
+    }
+
+    async Task SaveUpdateNotice()
+    {
+        isSavingUpdateNotice = true;
+        try
+        {
+            updateVersionInput = (updateVersionInput ?? "").Trim();
+            updateMessageInput = (updateMessageInput ?? "").Trim();
+
+            if (isUpdateRequiredInput)
+            {
+                if (string.IsNullOrWhiteSpace(updateVersionInput))
+                {
+                    ShowMessage("Error", "Please add update version.", "Error");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(updateMessageInput))
+                {
+                    ShowMessage("Error", "Please add update message.", "Error");
+                    return;
+                }
+            }
+
+            myData.UpdateVersion = updateVersionInput;
+            myData.UpdateMessage = updateMessageInput;
+            myData.IsUpdateRequired = isUpdateRequiredInput;
+
+            await Firebase.Save(myData);
+            ShowMessage("Success", "Update broadcast saved.", "Success");
+        }
+        finally
+        {
+            isSavingUpdateNotice = false;
         }
     }
 
