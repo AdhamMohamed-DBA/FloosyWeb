@@ -119,21 +119,23 @@
         if (string.IsNullOrEmpty(Firebase.CurrentUserId)) return;
 
         var update = await Firebase.LoadUpdateBroadcast();
-        if (!update.IsRequired) return;
-        if (string.IsNullOrWhiteSpace(update.Version) || string.IsNullOrWhiteSpace(update.Message)) return;
-
         var latestVersion = (update.Version ?? string.Empty).Trim();
+        var message = (update.Message ?? string.Empty).Trim();
         var requiredVersion = string.IsNullOrWhiteSpace(update.RequiredVersion)
             ? latestVersion
             : update.RequiredVersion.Trim();
 
-        var versionComparison = CompareVersions(CurrentAppVersion, requiredVersion);
+        var hasUpdateNotice = !string.IsNullOrWhiteSpace(latestVersion) && !string.IsNullOrWhiteSpace(message);
+        var forceUpdateRequired = update.IsRequired
+            && !string.IsNullOrWhiteSpace(requiredVersion)
+            && !string.IsNullOrWhiteSpace(message)
+            && CompareVersions(CurrentAppVersion, requiredVersion) < 0;
 
         // User version is older than required version => show update-required prompt every app open
-        if (versionComparison < 0)
+        if (forceUpdateRequired)
         {
             requiredLatestVersion = requiredVersion;
-            requiredUpdateMessage = update.Message;
+            requiredUpdateMessage = message;
 
             var reqAlignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
             requiredUpdateDir = reqAlignment == "rtl" ? "rtl" : "ltr";
@@ -145,12 +147,14 @@
             return;
         }
 
+        if (!hasUpdateNotice) return;
+
         var key = $"floosy_seen_update_{Firebase.CurrentUserId}";
         var seenVersion = await JS.InvokeAsync<string>("localStorage.getItem", key);
         if (string.Equals(seenVersion, latestVersion, StringComparison.OrdinalIgnoreCase)) return;
 
         activeUpdateVersion = latestVersion;
-        activeUpdateMessage = update.Message;
+        activeUpdateMessage = message;
         var alignment = (update.MessageAlignment ?? "ltr").Trim().ToLowerInvariant();
         activeUpdateDir = alignment == "rtl" ? "rtl" : "ltr";
         activeUpdateTextAlign = alignment == "rtl" ? "right" : "left";
