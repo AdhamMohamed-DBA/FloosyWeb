@@ -60,7 +60,10 @@ public class FirebaseService
             var savedEmail = _localStorage.GetItem<string>("UserEmail");
             if (!string.IsNullOrEmpty(savedId)) { CurrentUserId = savedId; UserEmail = savedEmail; }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[FirebaseService.InitUser] Failed to restore local user state: {ex.Message}");
+        }
     }
 
     public async Task<string> Login(string email, string pass)

@@ -202,7 +202,10 @@
         {
             LocalStorage.RemoveItem("SavedPass");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Login.OnInitializedAsync] Failed to remove legacy SavedPass key: {ex.Message}");
+        }
 
         // Check if this device even supports biometrics (WebAuthn)
         try
@@ -249,7 +252,10 @@
                     await JS.InvokeVoidAsync("floosyBiometric.setCredentials", email, password);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Login.DoLogin] Failed to store biometric credentials: {ex.Message}");
+            }
 
             Nav.NavigateTo("home");
         }
@@ -368,8 +374,9 @@
 
             Nav.NavigateTo("home");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"[Login.LoginWithBiometric] Biometric flow failed: {ex.Message}");
             ShowMessage(L.T("Error"), L.T("BiometricUnavailableNow"), L.T("Error"));
         }
     }

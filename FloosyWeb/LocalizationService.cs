@@ -61,6 +61,8 @@ public class LocalizationService
                 "RequiredVersion" => "Required Version",
                 "RequiredVersionPlaceholder" => "Required version (e.g. 2.6.0)",
                 "PleaseAddRequiredVersion" => "Please add required version.",
+                "ForceUpdateForOlderVersions" => "Force update for users below required version",
+                // Legacy key kept for backward compatibility
                 "ShowUpdatePopupOnce" => "Force update for users below required version",
                 "BillsTitle" => "Bills 🧾",
                 "DebtsTitle" => "Debts 💵",
@@ -119,6 +121,7 @@ public class LocalizationService
             "AlignEnglish" => "محاذاة إنجليزي",
             "UpdateBroadcast" => "إشعار التحديث",
             "UpdateMessagePlaceholder" => "اكتب رسالة التحديث...",
+            "ForceUpdateForOlderVersions" => "إلزام المستخدمين الأقل من النسخة المطلوبة بالتحديث",
 
             // Home
             "Welcome" => "أهلًا",
@@ -320,6 +323,7 @@ public class LocalizationService
             "Support" => "الدعم",
             "ContactWhatsapp" => "💬 تواصل عبر واتساب",
             "VersionPlaceholder" => "الإصدار (مثال 2.4.0)",
+            // Legacy key kept for backward compatibility
             "ShowUpdatePopupOnce" => "إلزام المستخدمين الأقل من النسخة المطلوبة بالتحديث",
             "SaveUpdateMessage" => "حفظ رسالة التحديث",
             "SignOut" => "تسجيل الخروج",

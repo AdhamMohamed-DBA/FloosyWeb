@@ -3,6 +3,7 @@
 @inject FirebaseService Firebase
 @inject IJSRuntime JS
 @inject LocalizationService L
+@inject IConfiguration Config
 
 <div class="page-shell" dir="@(L.IsArabic ? "rtl" : "ltr")" lang="@(L.IsArabic ? "ar" : "en")">
     <main class="page-content">
@@ -78,7 +79,8 @@
 }
 
 @code {
-    private const string CurrentAppVersion = "2.5.0";
+    private string CurrentAppVersion =>
+        (Config["App:Version"] ?? "0.0.0").Trim();
 
     bool isUpdateNoticeVisible = false;
     bool isUpdateRequiredVisible = false;

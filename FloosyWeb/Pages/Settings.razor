@@ -154,7 +154,7 @@
 
                 <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px 0;">
                     <input type="checkbox" @bind="isUpdateRequiredInput" style="width:16px; height:16px; accent-color:#00E676;" />
-                    <span style="color:#ccc; font-size:12px;">@L.T("ShowUpdatePopupOnce")</span>
+                    <span style="color:#ccc; font-size:12px;">@L.T("ForceUpdateForOlderVersions")</span>
                 </div>
 
                 <AppButton Text="@L.T("SaveUpdateMessage")"
@@ -277,8 +277,9 @@
         {
             useBiometric = await JS.InvokeAsync<bool>("floosyBiometric.isEnabled");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"[Settings.OnInitializedAsync] Failed to check biometric enabled state: {ex.Message}");
             useBiometric = false;
         }
     }
@@ -456,7 +457,11 @@
             {
                 supported = await JS.InvokeAsync<bool>("floosyBiometric.isSupported");
             }
-            catch { supported = false; }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Settings.ToggleBiometric] Failed to detect biometric support: {ex.Message}");
+                supported = false;
+            }
 
             if (!supported)
             {
@@ -477,14 +482,22 @@
         }
         else
         {
-            try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
+            try { await JS.InvokeVoidAsync("floosyBiometric.disable"); }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Settings.ToggleBiometric] Failed to disable biometric: {ex.Message}");
+            }
             useBiometric = false;
         }
     }
 
     async Task SignOut()
     {
-        try { await JS.InvokeVoidAsync("floosyBiometric.disable"); } catch { }
+        try { await JS.InvokeVoidAsync("floosyBiometric.disable"); }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Settings.SignOut] Failed to disable biometric before sign-out: {ex.Message}");
+        }
         Firebase.SignOut();
         Nav.NavigateTo("", forceLoad: true);
     }
