@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject LocalizationService L
+@inject IConfiguration Config
 
 <div class="page-section" style="padding-bottom:88px;">
 
@@ -127,6 +128,13 @@
         <div class="setting-card">
             <label>@L.T("UpdateBroadcast")</label>
             <div class="input-stack">
+                <p style="color:#bbb; font-size:12px; margin:0;">@L.T("InstalledAppVersion"): <b>@CurrentAppVersion</b></p>
+
+                @if (!string.IsNullOrWhiteSpace(adminUpdateSettingsStatus))
+                {
+                    <p style="color:#e67e22; font-size:12px; margin:0;">@adminUpdateSettingsStatus</p>
+                }
+
                 <label style="font-size:11px; color:#ccc;">@L.T("RequiredVersion")</label>
                 <AppInput Value="@requiredVersionInput"
                           ValueChanged="@(v => requiredVersionInput = v)"
@@ -235,6 +243,10 @@
     string updateMessageInput = "";
     string updateMessageAlignmentInput = "ltr";
     bool isUpdateRequiredInput = false;
+    string adminUpdateSettingsStatus = "";
+
+    private string CurrentAppVersion =>
+        (Config["App:Version"] ?? "0.0.0").Trim();
 
     string LanguageEnglishButtonStyle =>
         $"flex:1; background:{(L.CurrentLanguage == "en" ? "#00E676" : "#333")}; color:{(L.CurrentLanguage == "en" ? "black" : "white")};";
@@ -265,12 +277,21 @@
         isCurrentUserAdmin = await Firebase.IsCurrentUserAdmin();
         if (isCurrentUserAdmin)
         {
-            var broadcast = await Firebase.LoadUpdateBroadcast();
-            updateVersionInput = broadcast.Version;
-            requiredVersionInput = string.IsNullOrWhiteSpace(broadcast.RequiredVersion) ? broadcast.Version : broadcast.RequiredVersion;
-            updateMessageInput = broadcast.Message;
-            updateMessageAlignmentInput = string.Equals(broadcast.MessageAlignment, "rtl", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr";
-            isUpdateRequiredInput = broadcast.IsRequired;
+            try
+            {
+                var broadcast = await Firebase.LoadUpdateBroadcastStrict();
+                updateVersionInput = broadcast.Version;
+                requiredVersionInput = string.IsNullOrWhiteSpace(broadcast.RequiredVersion) ? broadcast.Version : broadcast.RequiredVersion;
+                updateMessageInput = broadcast.Message;
+                updateMessageAlignmentInput = string.Equals(broadcast.MessageAlignment, "rtl", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr";
+                isUpdateRequiredInput = broadcast.IsRequired;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Settings.OnInitializedAsync] Failed to load update settings: {ex.Message}");
+                adminUpdateSettingsStatus = L.T("UpdateLoadFailed");
+                ShowMessage(L.T("Error"), L.T("UpdateLoadFailed"), L.T("Error"));
+            }
         }
 
         try
@@ -396,6 +417,7 @@
     async Task SaveUpdateNotice()
     {
         isSavingUpdateNotice = true;
+        adminUpdateSettingsStatus = "";
         try
         {
             if (!await Firebase.IsCurrentUserAdmin())
@@ -407,6 +429,18 @@
             updateVersionInput = (updateVersionInput ?? "").Trim();
             requiredVersionInput = (requiredVersionInput ?? "").Trim();
             updateMessageInput = (updateMessageInput ?? "").Trim();
+
+            if (!string.IsNullOrWhiteSpace(updateVersionInput) && !IsStrictSemVer(updateVersionInput))
+            {
+                ShowMessage(L.T("Error"), L.T("InvalidVersionFormat"), L.T("Error"));
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(requiredVersionInput) && !IsStrictSemVer(requiredVersionInput))
+            {
+                ShowMessage(L.T("Error"), L.T("InvalidVersionFormat"), L.T("Error"));
+                return;
+            }
 
             if (isUpdateRequiredInput)
             {
@@ -427,23 +461,61 @@
                     ShowMessage(L.T("Error"), L.T("PleaseAddUpdateMessage"), L.T("Error"));
                     return;
                 }
+
+                if (CompareVersions(requiredVersionInput, updateVersionInput) > 0)
+                {
+                    ShowMessage(L.T("Error"), L.T("RequiredVersionCannotExceedBroadcastVersion"), L.T("Error"));
+                    return;
+                }
             }
 
-            await Firebase.SaveUpdateBroadcast(new UpdateBroadcast
+            try
             {
-                Version = updateVersionInput,
-                RequiredVersion = requiredVersionInput,
-                Message = updateMessageInput,
-                MessageAlignment = updateMessageAlignmentInput,
-                IsRequired = isUpdateRequiredInput,
-                UpdatedAt = DateTime.UtcNow
-            });
-            ShowMessage(L.T("Success"), L.T("UpdateSaved"), L.T("Success"));
+                await Firebase.SaveUpdateBroadcast(new UpdateBroadcast
+                {
+                    Version = updateVersionInput,
+                    RequiredVersion = requiredVersionInput,
+                    Message = updateMessageInput,
+                    MessageAlignment = updateMessageAlignmentInput,
+                    IsRequired = isUpdateRequiredInput,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                ShowMessage(L.T("Success"), L.T("UpdateSaved"), L.T("Success"));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Settings.SaveUpdateNotice] Failed to save update settings: {ex.Message}");
+                adminUpdateSettingsStatus = L.T("UpdateSaveFailed");
+                ShowMessage(L.T("Error"), L.T("UpdateSaveFailed"), L.T("Error"));
+            }
         }
         finally
         {
             isSavingUpdateNotice = false;
         }
+    }
+
+    static bool IsStrictSemVer(string version)
+    {
+        return System.Text.RegularExpressions.Regex.IsMatch(version ?? string.Empty, @"^\d+\.\d+\.\d+$");
+    }
+
+    static int CompareVersions(string current, string target)
+    {
+        var a = (current ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var b = (target ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var max = Math.Max(a.Length, b.Length);
+
+        for (int i = 0; i < max; i++)
+        {
+            var left = (i < a.Length && int.TryParse(a[i], out var av)) ? av : 0;
+            var right = (i < b.Length && int.TryParse(b[i], out var bv)) ? bv : 0;
+
+            if (left < right) return -1;
+            if (left > right) return 1;
+        }
+
+        return 0;
     }
 
     async Task ToggleBiometric(ChangeEventArgs e)

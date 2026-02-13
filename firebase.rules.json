@@ -1,0 +1,25 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "Users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+
+        "IsAdmin": {
+          ".write": false
+        }
+      }
+    },
+
+    "Global": {
+      "UpdateBroadcast": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('Users').child(auth.uid).child('IsAdmin').val() === true",
+        ".validate": "newData.hasChildren(['Version','RequiredVersion','Message','MessageAlignment','IsRequired','UpdatedAt'])"
+      }
+    }
+  }
+}

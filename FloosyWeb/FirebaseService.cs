@@ -221,6 +221,17 @@ public class FirebaseService
         }
     }
 
+    /// <summary>
+    /// Strict version for admin surfaces: throws on read failure so caller can show explicit error.
+    /// </summary>
+    public async Task<UpdateBroadcast> LoadUpdateBroadcastStrict()
+    {
+        if (string.IsNullOrEmpty(CurrentUserId)) throw new InvalidOperationException("Not Logged In");
+
+        return await db.Child("Global").Child("UpdateBroadcast").OnceSingleAsync<UpdateBroadcast>()
+            ?? new UpdateBroadcast();
+    }
+
     public async Task SaveUpdateBroadcast(UpdateBroadcast broadcast)
     {
         if (string.IsNullOrEmpty(CurrentUserId)) throw new InvalidOperationException("Not Logged In");

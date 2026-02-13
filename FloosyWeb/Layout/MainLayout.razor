@@ -33,17 +33,12 @@
             <p style="color:#ccc; margin-bottom:8px;">@L.T("CurrentVersionText"): <b>@CurrentAppVersion</b></p>
             <p style="color:#ccc; margin-bottom:8px;">@L.T("LatestVersionText"): <b>@requiredLatestVersion</b></p>
             <p style="color:#fff; white-space:pre-wrap; margin-bottom:0; text-align:@requiredUpdateTextAlign;" dir="@requiredUpdateDir">@requiredUpdateMessage</p>
+            <p style="color:#e67e22; margin-top:12px; margin-bottom:0; font-size:12px;">@L.T("UpdateRequiredBlockingHint")</p>
         </ChildContent>
         <FooterContent>
-            <div style="display:flex; gap:10px;">
-                <AppButton Text="@L.T("UpdateNow")"
-                           Style="flex:1; background:#00E676; color:black;"
-                           OnClick="@(async _ => await UpdateNowAsync())" />
-                <AppButton Text="@L.T("Ok")"
-                           Variant="ghost"
-                           Style="flex:1; background:#333; color:white;"
-                           OnClick="@(_ => { isUpdateRequiredVisible = false; return Task.CompletedTask; })" />
-            </div>
+            <AppButton Text="@L.T("UpdateNow")"
+                       Style="width:100%; background:#00E676; color:black;"
+                       OnClick="@(async _ => await UpdateNowAsync())" />
         </FooterContent>
     </AppModal>
 }
@@ -182,8 +177,9 @@
         {
             await JS.InvokeVoidAsync("floosyAppUpdateNow");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"[MainLayout.UpdateNowAsync] Update trigger failed, forcing reload: {ex.Message}");
             Nav.NavigateTo(Nav.Uri, forceLoad: true);
         }
     }

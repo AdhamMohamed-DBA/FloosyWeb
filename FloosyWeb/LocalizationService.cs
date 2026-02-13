@@ -52,16 +52,23 @@ public class LocalizationService
         {
             return key switch
             {
+                // Update flow / admin update settings
                 "Ok" => "OK",
                 "AppUpdated" => "App Updated",
                 "UpdateRequired" => "Update Required",
+                "UpdateRequiredBlockingHint" => "You must update to continue using the app.",
                 "CurrentVersionText" => "Your Version",
                 "LatestVersionText" => "Latest Version",
+                "InstalledAppVersion" => "Installed App Version",
                 "UpdateNow" => "Update Now",
                 "RequiredVersion" => "Required Version",
                 "RequiredVersionPlaceholder" => "Required version (e.g. 2.6.0)",
                 "PleaseAddRequiredVersion" => "Please add required version.",
                 "ForceUpdateForOlderVersions" => "Force update for users below required version",
+                "InvalidVersionFormat" => "Version format must be x.y.z (example: 2.7.0).",
+                "RequiredVersionCannotExceedBroadcastVersion" => "Required version cannot be higher than broadcast version.",
+                "UpdateLoadFailed" => "Could not load update settings. Please check your internet or permissions.",
+                "UpdateSaveFailed" => "Could not save update settings. Please check your internet or permissions.",
                 // Legacy key kept for backward compatibility
                 "ShowUpdatePopupOnce" => "Force update for users below required version",
                 "BillsTitle" => "Bills 🧾",
@@ -108,8 +115,10 @@ public class LocalizationService
             // Update popup / localization controls
             "AppUpdated" => "تم تحديث التطبيق",
             "UpdateRequired" => "تحديث مطلوب",
+            "UpdateRequiredBlockingHint" => "يجب تحديث التطبيق للمتابعة.",
             "CurrentVersionText" => "نسختك الحالية",
             "LatestVersionText" => "أحدث نسخة",
+            "InstalledAppVersion" => "نسخة التطبيق المثبتة",
             "UpdateNow" => "حدّث الآن",
             "RequiredVersion" => "النسخة المطلوبة",
             "RequiredVersionPlaceholder" => "النسخة المطلوبة (مثال 2.6.0)",
@@ -122,6 +131,10 @@ public class LocalizationService
             "UpdateBroadcast" => "إشعار التحديث",
             "UpdateMessagePlaceholder" => "اكتب رسالة التحديث...",
             "ForceUpdateForOlderVersions" => "إلزام المستخدمين الأقل من النسخة المطلوبة بالتحديث",
+            "InvalidVersionFormat" => "صيغة الإصدار يجب أن تكون x.y.z (مثال: 2.7.0).",
+            "RequiredVersionCannotExceedBroadcastVersion" => "لا يمكن أن تكون النسخة المطلوبة أعلى من نسخة الإشعار.",
+            "UpdateLoadFailed" => "تعذر تحميل إعدادات التحديث. تحقق من الإنترنت أو الصلاحيات.",
+            "UpdateSaveFailed" => "تعذر حفظ إعدادات التحديث. تحقق من الإنترنت أو الصلاحيات.",
 
             // Home
             "Welcome" => "أهلًا",
