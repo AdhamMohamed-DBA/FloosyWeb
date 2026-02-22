@@ -100,7 +100,7 @@
         Firebase.InitUser();
         L.Init();
         L.OnChange += HandleLocalizationChanged;
-        Nav.LocationChanged += (s, e) => StateHasChanged();
+        Nav.LocationChanged += HandleLocationChanged;
     }
 
     void HandleLocalizationChanged() => InvokeAsync(StateHasChanged);
@@ -109,6 +109,15 @@
     {
         if (!firstRender) return;
         await EvaluateUpdateStateAsync();
+    }
+
+    async void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await EvaluateUpdateStateAsync();
+        });
     }
 
     async Task EvaluateUpdateStateAsync()
@@ -125,8 +134,12 @@
         var hasUpdateNotice = !string.IsNullOrWhiteSpace(latestVersion) && !string.IsNullOrWhiteSpace(message);
         var forceUpdateRequired = update.IsRequired
             && !string.IsNullOrWhiteSpace(requiredVersion)
-            && !string.IsNullOrWhiteSpace(message)
             && CompareVersions(CurrentAppVersion, requiredVersion) < 0;
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = L.T("UpdateRequiredFallbackMessage");
+        }
 
         // User version is older than required version => show update-required prompt every app open
         if (forceUpdateRequired)
@@ -205,5 +218,6 @@
     public void Dispose()
     {
         L.OnChange -= HandleLocalizationChanged;
+        Nav.LocationChanged -= HandleLocationChanged;
     }
 }

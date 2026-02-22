@@ -12,7 +12,7 @@
                    Icon="🔄"
                    Style="font-size:12px; width:auto; background:#3498db; color:white;"
                    AriaLabel="@L.T("NewMonthAria")"
-                   OnClick="@(_ => { isResetConfirmVisible = true; return Task.CompletedTask; })" />
+                   OnClick="@(_ => { selectedResetFrequency = "Monthly"; isResetConfirmVisible = true; return Task.CompletedTask; })" />
     </div>
 
     <div class="card" style="padding:15px; margin-bottom:25px;">
@@ -34,11 +34,19 @@
 
         <div style="display:flex; gap:5px;">
             <AppSelect Value="@currentBill.Frequency"
-                       ValueChanged="@(v => currentBill.Frequency = v)"
+                       ValueChanged="@(v => OnCurrentBillFrequencyChanged(v))"
                        Options="@FrequencyOptions"
                        Style="flex:1;" />
             <input type="date" @bind="currentBill.DueDate" class="input-dark" style="flex:1;" />
         </div>
+
+        @if (currentBill.IsRecurring)
+        {
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                <label style="font-size:12px; color:#aaa;">@L.T("BillEndDateOptional")</label>
+                <input type="date" @bind="currentBill.EndDate" class="input-dark" />
+            </div>
+        }
 
         <div style="margin-bottom:10px; padding:10px; background:#2a2a2a; border-radius:8px;">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
@@ -105,7 +113,13 @@
         <div style="background:#1f1f1f; padding:20px; border-left: 6px solid @(bill.IsPaid ? "#2ecc71" : "#e74c3c"); margin-bottom:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
             <div style="flex:1; cursor:pointer;" @onclick="() => EditBill(bill)">
                 <div style="font-weight:900; font-size:1.2em; color:white;">@bill.Name</div>
-                <div style="font-size:0.9em; color:#bbb;">@bill.Category • @bill.DueDate.ToString("dd MMM")</div>
+                <div style="font-size:0.9em; color:#bbb;">
+                    @bill.Category • @bill.DueDate.ToString("dd MMM")
+                    @if (bill.EndDate.HasValue)
+                    {
+                        <span> • @L.T("EndsOn"): @bill.EndDate.Value.ToString("dd MMM yyyy")</span>
+                    }
+                </div>
                 <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:center;">
                     @if (bill.IsRecurring)
                     {
@@ -205,12 +219,18 @@
         <ChildContent>
             <h3 style="color:#3498db;">@L.T("NewMonthQuestion")</h3>
             <p style="color:#ccc;">@L.T("NewMonthConfirm")</p>
+            <div style="text-align:left; margin-top:12px;">
+                <label style="display:block; color:#bbb; margin-bottom:6px;">@L.T("ResetFrequency")</label>
+                <AppSelect Value="@selectedResetFrequency"
+                           ValueChanged="@(v => selectedResetFrequency = v)"
+                           Options="@ResetFrequencyOptions" />
+            </div>
         </ChildContent>
         <FooterContent>
             <div style="display:flex; gap:10px;">
                 <AppButton Text="@L.T("Yes")"
                            Style="background:#3498db; color:white; flex:1;"
-                           OnClick="@(async _ => await ExecuteResetMonthly())" />
+                           OnClick="@(async _ => await ExecuteResetByFrequency())" />
                 <AppButton Text="@L.T("Cancel")"
                            Variant="ghost"
                            Style="flex:1;"
@@ -295,6 +315,7 @@
     Bill? billToDelete;
 
     bool isResetConfirmVisible = false;
+    string selectedResetFrequency = "Monthly";
 
     string newCatName = "";
     string newParticipantName = "";
@@ -309,6 +330,14 @@
         new[]
         {
             new KeyValuePair<string, string>("OneTime", L.IsArabic ? "مرة واحدة" : "OneTime"),
+            new KeyValuePair<string, string>("Monthly", L.T("Monthly")),
+            new KeyValuePair<string, string>("Quarterly", L.IsArabic ? "ربع سنوي" : "Quarterly"),
+            new KeyValuePair<string, string>("Yearly", L.IsArabic ? "سنوي" : "Yearly")
+        };
+
+    IEnumerable<KeyValuePair<string, string>> ResetFrequencyOptions =>
+        new[]
+        {
             new KeyValuePair<string, string>("Monthly", L.T("Monthly")),
             new KeyValuePair<string, string>("Quarterly", L.IsArabic ? "ربع سنوي" : "Quarterly"),
             new KeyValuePair<string, string>("Yearly", L.IsArabic ? "سنوي" : "Yearly")
@@ -334,7 +363,16 @@
         currentBill = b; isEditMode = true;
         await JS.InvokeVoidAsync("window.scrollTo", 0, 0); // Keep Scroll logic, it's UI utility not alert
     }
-    void CancelEdit() { currentBill = new Bill { DueDate = DateTime.Now }; isEditMode = false; }
+    void CancelEdit() { currentBill = new Bill { DueDate = DateTime.Now, Frequency = "OneTime", EndDate = null }; isEditMode = false; }
+
+    void OnCurrentBillFrequencyChanged(string value)
+    {
+        currentBill.Frequency = value;
+        if (!currentBill.IsRecurring)
+        {
+            currentBill.EndDate = null;
+        }
+    }
 
     async Task SaveBill()
     {
@@ -342,6 +380,19 @@
         isSavingBill = true;
         try
         {
+            if (!currentBill.IsRecurring)
+            {
+                currentBill.EndDate = null;
+            }
+
+            if (currentBill.IsRecurring && currentBill.EndDate.HasValue && currentBill.EndDate.Value.Date < currentBill.DueDate.Date)
+            {
+                messageTitle = L.T("Error");
+                messageBody = L.T("EndDateBeforeDueDate");
+                isMessageVisible = true;
+                return;
+            }
+
             EnsureBillParticipants(currentBill);
             SyncSharedSummary(currentBill);
             if (!isEditMode) myData.Bills.Add(currentBill);
@@ -447,11 +498,59 @@
     }
 
     // 🔥 Reset Logic replaced with Modal
-    async Task ExecuteResetMonthly()
+    async Task ExecuteResetByFrequency()
     {
-        foreach (var b in myData.Bills.Where(x => x.IsRecurring)) { b.IsPaid = false; b.PaymentDate = null; }
+        var targetFrequency = string.IsNullOrWhiteSpace(selectedResetFrequency) ? "Monthly" : selectedResetFrequency;
+        var billsToDelete = new List<Bill>();
+
+        foreach (var b in myData.Bills
+            .Where(x => string.Equals(x.Frequency, targetFrequency, StringComparison.OrdinalIgnoreCase))
+            .ToList())
+        {
+            b.IsPaid = false;
+            b.PaymentDate = null;
+
+            if (b.IsShared)
+            {
+                EnsureBillParticipants(b);
+                foreach (var p in b.Participants)
+                {
+                    p.IsPaid = false;
+                    p.PaidAt = null;
+                }
+                SyncSharedSummary(b);
+            }
+
+            var nextDue = GetNextDueDate(b.DueDate, b.Frequency);
+            if (b.EndDate.HasValue && nextDue.Date > b.EndDate.Value.Date)
+            {
+                billsToDelete.Add(b);
+                continue;
+            }
+
+            b.DueDate = nextDue;
+        }
+
+        foreach (var bill in billsToDelete)
+        {
+            myData.Bills.Remove(bill);
+        }
+
+        if (isEditMode && billsToDelete.Any(x => x.Id == currentBill.Id))
+        {
+            CancelEdit();
+        }
+
         await Firebase.Save(myData);
         isResetConfirmVisible = false;
+    }
+
+    static DateTime GetNextDueDate(DateTime dueDate, string frequency)
+    {
+        if (string.Equals(frequency, "Monthly", StringComparison.OrdinalIgnoreCase)) return dueDate.AddMonths(1);
+        if (string.Equals(frequency, "Quarterly", StringComparison.OrdinalIgnoreCase)) return dueDate.AddMonths(3);
+        if (string.Equals(frequency, "Yearly", StringComparison.OrdinalIgnoreCase)) return dueDate.AddYears(1);
+        return dueDate;
     }
 
     async Task AddCategory() { if (!string.IsNullOrEmpty(newCatName)) { myData.BillCategories.Add(newCatName); await Firebase.Save(myData); newCatName = ""; } }
