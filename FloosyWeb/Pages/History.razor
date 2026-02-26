@@ -56,6 +56,12 @@
                       Placeholder="@L.T("Description")" />
             <input type="number" @bind="selectedTrans.Amount" class="input-dark" placeholder="@L.T("Amount")" />
 
+            <label style="font-size:12px; color:gray;">@L.T("Date")</label>
+            <input type="datetime-local"
+                   value="@editDateLocal"
+                   @onchange="@(e => editDateLocal = e.Value?.ToString() ?? "")"
+                   class="input-dark" />
+
             <label style="font-size:12px; color:gray;">@L.T("UpdateBalanceOnAccount")</label>
             <AppSelect Value="@editAccountId"
                        ValueChanged="@(v => editAccountId = v)"
@@ -115,6 +121,7 @@
     // Logic Vars
     string editAccountId = "";
     string refundAccountId = "";
+    string editDateLocal = "";
     decimal oldAmount = 0;
 
     // 🔥 Filter Vars
@@ -168,6 +175,8 @@
     {
         selectedTrans = t;
         oldAmount = t.Amount;
+        editDateLocal = t.Date.ToString("yyyy-MM-ddTHH:mm");
+        editAccountId = "";
         isEditVisible = true;
     }
 
@@ -176,6 +185,18 @@
         isSavingEdit = true;
         try
         {
+            var formats = new[] { "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss" };
+            if (!string.IsNullOrWhiteSpace(editDateLocal) &&
+                DateTime.TryParseExact(
+                    editDateLocal,
+                    formats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeLocal,
+                    out DateTime parsedDate))
+            {
+                selectedTrans.Date = parsedDate;
+            }
+
             if (!string.IsNullOrEmpty(editAccountId))
             {
                 var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
