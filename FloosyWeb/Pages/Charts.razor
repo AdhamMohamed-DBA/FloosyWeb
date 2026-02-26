@@ -134,17 +134,31 @@
     protected override async Task OnInitializedAsync()
     {
         myData = await Firebase.Load();
+        selectedMonthStr = FinancialMonthHelper
+            .GetFinancialMonthKey(DateTime.Now, FinancialStartDay)
+            .ToString("yyyy-MM");
+    }
+
+    int FinancialStartDay => FinancialMonthHelper.NormalizeStartDay(myData.FinancialStartDay);
+
+    DateTime? SelectedMonthKey
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(selectedMonthStr)) return null;
+            if (!DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate)) return null;
+            return new DateTime(selectedDate.Year, selectedDate.Month, 1);
+        }
     }
 
     bool IsInFilter(DateTime date)
     {
         if (isLifetime) return true;
 
-        if (!string.IsNullOrEmpty(selectedMonthStr) && DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate))
-        {
-            return date.Year == selectedDate.Year && date.Month == selectedDate.Month;
-        }
-        return false;
+        var monthKey = SelectedMonthKey;
+        if (!monthKey.HasValue) return false;
+
+        return FinancialMonthHelper.GetFinancialMonthKey(date, FinancialStartDay) == monthKey.Value;
     }
 
     decimal CurrentIncome => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
@@ -157,10 +171,20 @@
         get
         {
             if (isLifetime) return 0;
-            if (!DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate)) return 0;
-            var prev = selectedDate.AddMonths(-1);
-            var prevIncome = myData.History.Where(x => x.Date.Year == prev.Year && x.Date.Month == prev.Month && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
-            var prevExpense = myData.History.Where(x => x.Date.Year == prev.Year && x.Date.Month == prev.Month && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
+
+            var monthKey = SelectedMonthKey;
+            if (!monthKey.HasValue) return 0;
+
+            var prevMonthKey = monthKey.Value.AddMonths(-1);
+
+            var prevIncome = myData.History
+                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && (x.AmountDisplay ?? "").StartsWith("+"))
+                .Sum(x => x.Amount);
+
+            var prevExpense = myData.History
+                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && (x.AmountDisplay ?? "").StartsWith("-"))
+                .Sum(x => x.Amount);
+
             return prevIncome - Math.Abs(prevExpense);
         }
     }

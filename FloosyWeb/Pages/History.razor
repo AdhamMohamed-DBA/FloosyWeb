@@ -131,6 +131,21 @@
     protected override async Task OnInitializedAsync()
     {
         myData = await Firebase.Load();
+        selectedMonthStr = FinancialMonthHelper
+            .GetFinancialMonthKey(DateTime.Now, FinancialStartDay)
+            .ToString("yyyy-MM");
+    }
+
+    int FinancialStartDay => FinancialMonthHelper.NormalizeStartDay(myData.FinancialStartDay);
+
+    DateTime? SelectedMonthKey
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(selectedMonthStr)) return null;
+            if (!DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate)) return null;
+            return new DateTime(selectedDate.Year, selectedDate.Month, 1);
+        }
     }
 
     // 🔥 Filter Logic
@@ -140,13 +155,12 @@
         {
             if (string.IsNullOrEmpty(selectedMonthStr)) return myData.History.OrderByDescending(x => x.Date);
 
-            if (DateTime.TryParse(selectedMonthStr + "-01", out DateTime selectedDate))
-            {
-                return myData.History
-                    .Where(x => x.Date.Year == selectedDate.Year && x.Date.Month == selectedDate.Month)
-                    .OrderByDescending(x => x.Date);
-            }
-            return new List<Transaction>();
+            var monthKey = SelectedMonthKey;
+            if (!monthKey.HasValue) return myData.History.OrderByDescending(x => x.Date);
+
+            return myData.History
+                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == monthKey.Value)
+                .OrderByDescending(x => x.Date);
         }
     }
 

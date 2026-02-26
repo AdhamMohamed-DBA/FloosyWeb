@@ -129,3 +129,30 @@ public class ChartItem
     public string AmountStr { get; set; } = "";
     public string Color { get; set; } = "";
 }
+
+public static class FinancialMonthHelper
+{
+    public static int NormalizeStartDay(int startDay)
+    {
+        if (startDay < 1) return 1;
+        if (startDay > 28) return 28;
+        return startDay;
+    }
+
+    /// <summary>
+    /// Returns the financial month key as first day of month.
+    /// Example: startDay=25, date=2026-02-25 => key=2026-03-01.
+    /// </summary>
+    public static DateTime GetFinancialMonthKey(DateTime date, int startDay)
+    {
+        var normalizedStartDay = NormalizeStartDay(startDay);
+        var key = new DateTime(date.Year, date.Month, 1);
+
+        if (date.Day >= normalizedStartDay)
+        {
+            key = key.AddMonths(1);
+        }
+
+        return key;
+    }
+}
