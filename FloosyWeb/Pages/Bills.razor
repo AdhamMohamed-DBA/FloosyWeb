@@ -576,7 +576,18 @@
                     return;
                 }
                 acc.Balance -= selectedBillToPay.Amount;
-                myData.History.Add(new Transaction { Desc = $"Paid: {selectedBillToPay.Name}", Category = "Bills", Amount = selectedBillToPay.Amount, AmountDisplay = $"-{selectedBillToPay.Amount:N2}", ColorHex = "#e74c3c", Date = DateTime.Now });
+                myData.History.Add(new Transaction
+                {
+                    Kind = "Bill",
+                    Desc = $"Paid: {selectedBillToPay.Name}",
+                    Category = "Bills",
+                    Amount = selectedBillToPay.Amount,
+                    AmountDisplay = $"-{selectedBillToPay.Amount:N2}",
+                    ColorHex = "#e74c3c",
+                    PrimaryAccountId = acc.Id,
+                    PrimaryAccountName = acc.Name,
+                    Date = DateTime.Now
+                });
                 selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;
                 await Firebase.Save(myData); isPayModalVisible = false;
             }

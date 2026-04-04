@@ -16,7 +16,30 @@
                value="@selectedMonthStr"
                @onchange="@(e => selectedMonthStr = e.Value?.ToString() ?? "")"
                class="input-dark"
-               style="margin-bottom:0;" />
+               style="margin-bottom:10px;" />
+
+        <label style="color:gray; font-size:12px;">@L.T("FilterByAccount")</label>
+        <AppSelect Value="@selectedAccountFilterId"
+                   ValueChanged="@(v => selectedAccountFilterId = v)"
+                   Options="@HistoryAccountFilterOptions" />
+
+        <div style="margin-top:10px; padding:10px; border-radius:8px; background:#242424;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#bbb; font-size:12px; margin-bottom:6px;">
+                <span>@L.T("SpentThisPeriod")</span>
+                <span style="color:#e74c3c; font-weight:bold;">@TotalExpensesInView.ToString("N2")</span>
+            </div>
+
+            @if (ExpenseByAccountInView.Any())
+            {
+                @foreach (var row in ExpenseByAccountInView)
+                {
+                    <div style="display:flex; justify-content:space-between; color:#ddd; font-size:12px; margin-bottom:4px;">
+                        <span>@row.Key</span>
+                        <span>@row.Value.ToString("N2")</span>
+                    </div>
+                }
+            }
+        </div>
     </div>
 
     @if (!FilteredTransactions.Any())
@@ -33,6 +56,7 @@
                 <div style="flex:1;">
                     <div style="color:@t.ColorHex; font-size:11px;">@t.Category</div>
                     <div style="font-weight:bold; color:white; font-size:1.1em;">@t.Desc</div>
+                    <div style="color:#9c9c9c; font-size:11px;">@GetTransactionAccountLine(t)</div>
                     <div style="color:gray; font-size:11px;">@t.Date.ToString("dd MMM, HH:mm")</div>
                 </div>
                 <div style="text-align:right;">
@@ -123,6 +147,7 @@
     string refundAccountId = "";
     string editDateLocal = "";
     decimal oldAmount = 0;
+    string selectedAccountFilterId = "";
 
     // 🔥 Filter Vars
     string selectedMonthStr = DateTime.Now.ToString("yyyy-MM");
@@ -134,6 +159,20 @@
     IEnumerable<KeyValuePair<string, string>> HistoryDeleteAccountOptions =>
         new[] { new KeyValuePair<string, string>("", L.T("JustDeleteNoRefund")) }
         .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))));
+
+    IEnumerable<KeyValuePair<string, string>> HistoryAccountFilterOptions =>
+        new[] { new KeyValuePair<string, string>("", L.T("AllAccounts")) }
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("UnknownAccount"))));
+
+    decimal TotalExpensesInView => FilteredTransactions.Where(IsExpenseTransaction).Sum(x => x.Amount);
+
+    List<KeyValuePair<string, decimal>> ExpenseByAccountInView =>
+        FilteredTransactions
+            .Where(IsExpenseTransaction)
+            .GroupBy(GetPrimaryAccountLabel)
+            .Select(g => new KeyValuePair<string, decimal>(g.Key, g.Sum(x => x.Amount)))
+            .OrderByDescending(x => x.Value)
+            .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,15 +199,82 @@
     {
         get
         {
-            if (string.IsNullOrEmpty(selectedMonthStr)) return myData.History.OrderByDescending(x => x.Date);
+            IEnumerable<Transaction> filtered = myData.History;
 
-            var monthKey = SelectedMonthKey;
-            if (!monthKey.HasValue) return myData.History.OrderByDescending(x => x.Date);
+            if (!string.IsNullOrEmpty(selectedMonthStr))
+            {
+                var monthKey = SelectedMonthKey;
+                if (monthKey.HasValue)
+                {
+                    filtered = filtered.Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == monthKey.Value);
+                }
+            }
 
-            return myData.History
-                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == monthKey.Value)
-                .OrderByDescending(x => x.Date);
+            if (!string.IsNullOrEmpty(selectedAccountFilterId))
+            {
+                filtered = filtered.Where(TransactionTouchesSelectedAccount);
+            }
+
+            return filtered.OrderByDescending(x => x.Date);
         }
+    }
+
+    bool TransactionTouchesSelectedAccount(Transaction t)
+    {
+        if (string.IsNullOrEmpty(selectedAccountFilterId)) return true;
+
+        return string.Equals(t.PrimaryAccountId, selectedAccountFilterId, StringComparison.Ordinal)
+            || string.Equals(t.TargetAccountId, selectedAccountFilterId, StringComparison.Ordinal);
+    }
+
+    bool IsExpenseTransaction(Transaction t)
+    {
+        if ((t.AmountDisplay ?? string.Empty).StartsWith("-")) return true;
+
+        return string.Equals(t.Kind, "Expense", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "Bill", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase);
+    }
+
+    string GetPrimaryAccountLabel(Transaction t)
+    {
+        if (!string.IsNullOrWhiteSpace(t.PrimaryAccountName))
+            return t.PrimaryAccountName;
+
+        if (!string.IsNullOrWhiteSpace(t.PrimaryAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == t.PrimaryAccountId);
+            if (!string.IsNullOrWhiteSpace(acc?.Name))
+                return acc.Name;
+        }
+
+        return L.T("UnknownAccount");
+    }
+
+    string GetTargetAccountLabel(Transaction t)
+    {
+        if (!string.IsNullOrWhiteSpace(t.TargetAccountName))
+            return t.TargetAccountName;
+
+        if (!string.IsNullOrWhiteSpace(t.TargetAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == t.TargetAccountId);
+            if (!string.IsNullOrWhiteSpace(acc?.Name))
+                return acc.Name;
+        }
+
+        return L.T("UnknownAccount");
+    }
+
+    string GetTransactionAccountLine(Transaction t)
+    {
+        if (string.Equals(t.Kind, "Transfer", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Category, "Transfer", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{L.T("From")} {GetPrimaryAccountLabel(t)} → {L.T("To")} {GetTargetAccountLabel(t)}";
+        }
+
+        return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)}";
     }
 
     void EditTrans(Transaction t)
@@ -210,6 +316,9 @@
                     // Note: We assume user didn't change sign logic here, just amount.
                     // Ideally, edit should allow changing Income/Expense type too, but for simplicity:
                     if (wasIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+
+                    selectedTrans.PrimaryAccountId = acc.Id;
+                    selectedTrans.PrimaryAccountName = acc.Name;
                 }
             }
 

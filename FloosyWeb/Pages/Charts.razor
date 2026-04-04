@@ -85,6 +85,33 @@
                    OnClick="@(_ => { isExpense = true; return Task.CompletedTask; })" />
     </div>
 
+    @if (isExpense)
+    {
+        <div style="background:#1f1f1f; border:1px solid #333; border-radius:10px; padding:12px; margin-bottom:20px;">
+            <h4 style="margin:0 0 10px 0; color:#ddd;">@L.T("ExpensesByAccount")</h4>
+
+            @if (ExpenseByAccount.Any())
+            {
+                @foreach (var item in ExpenseByAccount)
+                {
+                    <div style="margin-bottom: 12px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                            <span style="color:#eee;">@item.Name</span>
+                            <span style="color:#aaa;">@item.AmountStr</span>
+                        </div>
+                        <div style="width:100%; background:#333; height:8px; border-radius:5px; overflow:hidden;">
+                            <div style="width:@((int)(item.Pct * 100))%; background-color:#ff6b6b; height:100%;"></div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p style="color:gray; margin:0;">@L.T("NoData")</p>
+            }
+        </div>
+    }
+
     @if (ChartData.Any())
     {
         @foreach (var item in ChartData)
@@ -215,6 +242,59 @@
                 double val = g.Sum(x => (double)x.Amount);
                 return new ChartItem { Name = g.Key, AmountStr = val.ToString("N2"), Pct = val / total, Color = isExpense ? "#e74c3c" : "#2ecc71" };
             }).OrderByDescending(x => x.Pct).ToList();
+        }
+    }
+
+    bool IsExpenseTransaction(Transaction t)
+    {
+        if ((t.AmountDisplay ?? string.Empty).StartsWith("-")) return true;
+
+        return string.Equals(t.Kind, "Expense", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "Bill", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase);
+    }
+
+    string GetAccountName(Transaction t)
+    {
+        if (!string.IsNullOrWhiteSpace(t.PrimaryAccountName))
+            return t.PrimaryAccountName;
+
+        if (!string.IsNullOrWhiteSpace(t.PrimaryAccountId))
+        {
+            var acc = myData.Accounts.FirstOrDefault(x => x.Id == t.PrimaryAccountId);
+            if (!string.IsNullOrWhiteSpace(acc?.Name))
+                return acc.Name;
+        }
+
+        return L.T("UnknownAccount");
+    }
+
+    List<ChartItem> ExpenseByAccount
+    {
+        get
+        {
+            var expenseItems = myData.History
+                .Where(x => IsInFilter(x.Date) && IsExpenseTransaction(x))
+                .ToList();
+
+            var total = expenseItems.Sum(x => (double)x.Amount);
+            if (total <= 0) return new();
+
+            return expenseItems
+                .GroupBy(GetAccountName)
+                .Select(g =>
+                {
+                    var val = g.Sum(x => (double)x.Amount);
+                    return new ChartItem
+                    {
+                        Name = g.Key,
+                        AmountStr = val.ToString("N2"),
+                        Pct = val / total,
+                        Color = "#ff6b6b"
+                    };
+                })
+                .OrderByDescending(x => x.Pct)
+                .ToList();
         }
     }
 }

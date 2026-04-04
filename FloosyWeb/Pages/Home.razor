@@ -491,11 +491,14 @@
         if (isIncome) acc.Balance += transAmount; else acc.Balance -= transAmount;
         myData.History.Add(new Transaction
         {
+            Kind = isIncome ? "Income" : "Expense",
             Desc = string.IsNullOrEmpty(transDesc) ? selectedCategory : transDesc,
             Category = selectedCategory,
             Amount = transAmount,
             AmountDisplay = isIncome ? $"+{transAmount:N2}" : $"-{transAmount:N2}",
             ColorHex = isIncome ? "#2ecc71" : "#e74c3c",
+            PrimaryAccountId = acc.Id,
+            PrimaryAccountName = acc.Name,
             Date = transDate
         });
         await Firebase.Save(myData); isTransModalVisible = false;
@@ -541,7 +544,20 @@
         {
             f.Balance -= transferAmount; t.Balance += transferAmount;
             var desc = string.IsNullOrEmpty(transDesc) ? $"Trf {f.Name}->{t.Name}" : transDesc;
-            myData.History.Add(new Transaction { Desc = desc, Category = "Transfer", Amount = transferAmount, AmountDisplay = $"{transferAmount:N2}", ColorHex = "#3498db", Date = transDate });
+            myData.History.Add(new Transaction
+            {
+                Kind = "Transfer",
+                Desc = desc,
+                Category = "Transfer",
+                Amount = transferAmount,
+                AmountDisplay = $"{transferAmount:N2}",
+                ColorHex = "#3498db",
+                PrimaryAccountId = f.Id,
+                PrimaryAccountName = f.Name,
+                TargetAccountId = t.Id,
+                TargetAccountName = t.Name,
+                Date = transDate
+            });
             await Firebase.Save(myData); isTransferModalVisible = false;
         }
     }

@@ -79,11 +79,20 @@ public class BillParticipant
 public class Transaction
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Kind { get; set; } = "";
     public string? Desc { get; set; }
     public string Category { get; set; } = "Other";
     public decimal Amount { get; set; }
     public string? AmountDisplay { get; set; }
     public string? ColorHex { get; set; }
+
+    // Account metadata for analytics/history filtering.
+    // Backward compatible: old records simply keep these null/empty.
+    public string? PrimaryAccountId { get; set; }
+    public string? PrimaryAccountName { get; set; }
+    public string? TargetAccountId { get; set; }
+    public string? TargetAccountName { get; set; }
+
     public DateTime Date { get; set; } = DateTime.Now;
 }
 

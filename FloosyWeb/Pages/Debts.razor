@@ -503,6 +503,7 @@
             return;
 
         var person = myData.People.FirstOrDefault(p => p.Id == selectedMove.PersonId);
+        Account? editedAcc = null;
 
         if (person != null)
         {
@@ -513,21 +514,21 @@
 
         if (!string.IsNullOrEmpty(editMoveAccountId))
         {
-            var acc = myData.Accounts.FirstOrDefault(a => a.Id == editMoveAccountId);
-            if (acc != null)
+            editedAcc = myData.Accounts.FirstOrDefault(a => a.Id == editMoveAccountId);
+            if (editedAcc != null)
             {
                 // Revert + apply on chosen account
                 if (selectedMove.IsFromPerson)
                 {
                     // they paid you: original acc.Balance += old
-                    acc.Balance -= oldMoveAmount;
-                    acc.Balance += editMoveAmount;
+                    editedAcc.Balance -= oldMoveAmount;
+                    editedAcc.Balance += editMoveAmount;
                 }
                 else
                 {
                     // you paid them: original acc.Balance -= old
-                    acc.Balance += oldMoveAmount;
-                    acc.Balance -= editMoveAmount;
+                    editedAcc.Balance += oldMoveAmount;
+                    editedAcc.Balance -= editMoveAmount;
                 }
             }
         }
@@ -540,6 +541,12 @@
             {
                 t.Amount = editMoveAmount;
                 t.AmountDisplay = (selectedMove.IsFromPerson ? "+" : "-") + editMoveAmount.ToString("N2");
+
+                if (editedAcc != null)
+                {
+                    t.PrimaryAccountId = editedAcc.Id;
+                    t.PrimaryAccountName = editedAcc.Name;
+                }
             }
         }
 
@@ -627,6 +634,7 @@
 
                 t = new Transaction
                 {
+                    Kind = "DebtIn",
                     Desc = string.IsNullOrEmpty(moveNote)
                         ? $"{L.T("FromPerson")} {selectedPerson.Name}"
                         : $"{L.T("FromPerson")} {selectedPerson.Name} - {moveNote}",
@@ -634,6 +642,8 @@
                     Amount = amount,
                     AmountDisplay = $"+{amount:N2}",
                     ColorHex = "#2ecc71",
+                    PrimaryAccountId = acc.Id,
+                    PrimaryAccountName = acc.Name,
                     Date = moveDate
                 };
             }
@@ -644,6 +654,7 @@
 
                 t = new Transaction
                 {
+                    Kind = "DebtOut",
                     Desc = string.IsNullOrEmpty(moveNote)
                         ? $"{L.T("ToPerson")} {selectedPerson.Name}"
                         : $"{L.T("ToPerson")} {selectedPerson.Name} - {moveNote}",
@@ -651,6 +662,8 @@
                     Amount = amount,
                     AmountDisplay = $"-{amount:N2}",
                     ColorHex = "#e74c3c",
+                    PrimaryAccountId = acc.Id,
+                    PrimaryAccountName = acc.Name,
                     Date = moveDate
                 };
             }
@@ -755,6 +768,7 @@
         </div>
     </div>
 }
+
 
 
 
