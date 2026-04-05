@@ -1,0 +1,26 @@
+{
+  "name": "FloosyWeb - Your Personal Wallet",
+  "short_name": "Floosy",
+  "description": "Manage your finances easily",
+  "id": "/FloosyWeb/",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#00E676",
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "images/appicon.png",
+      "type": "image/png",
+      "sizes": "513x487",
+      "purpose": "any"
+    },
+    {
+      "src": "images/appicon_maskable.png",
+      "type": "image/png",
+      "sizes": "410x410",
+      "purpose": "maskable"
+    }
+  ]
+}
