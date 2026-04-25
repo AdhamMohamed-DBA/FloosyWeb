@@ -7,8 +7,10 @@
     <title>Floosy</title>
 
     <script>
-        var path = window.location.hostname.includes('localhost') ? '/' : '/FloosyWeb/';
-        document.write('<base href="' + path + '" />');
+        const host = window.location.hostname.toLowerCase();
+        const isGitHubPages = host.endsWith('github.io');
+        const basePath = isGitHubPages ? '/FloosyWeb/' : '/';
+        document.write(`<base href="${basePath}" />`);
     </script>
 
     <link href="manifest.webmanifest" rel="manifest" />
