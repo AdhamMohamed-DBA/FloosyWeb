@@ -1,5 +1,5 @@
 {
-  "buildCommand": "dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release",
+  "buildCommand": "curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 && export DOTNET_ROOT=$HOME/.dotnet && export PATH=$DOTNET_ROOT:$PATH && dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release --nologo",
   "outputDirectory": "release/wwwroot",
   "rewrites": [
     {
