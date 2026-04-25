@@ -2,7 +2,7 @@
   "name": "FloosyWeb - Your Personal Wallet",
   "short_name": "Floosy",
   "description": "Manage your finances easily",
-  "id": "/FloosyWeb/",
+  "id": "./",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#121212",

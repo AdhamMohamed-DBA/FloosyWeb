@@ -1,0 +1,10 @@
+{
+  "buildCommand": "dotnet publish FloosyWeb/FloosyWeb.csproj -c Release -o release",
+  "outputDirectory": "release/wwwroot",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
