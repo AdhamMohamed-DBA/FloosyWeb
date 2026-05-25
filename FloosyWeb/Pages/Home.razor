@@ -40,7 +40,7 @@
             {
                 var utilization = cc.CreditLimit <= 0 ? 0 : Math.Min(100, (cc.OutstandingBalance / cc.CreditLimit) * 100);
                 var dueSoon = GetCreditDueSoonAmount(cc);
-                var nextDueDate = GetNextDueDateForCard(cc);
+                var dueLabel = GetDueLabelForCard(cc);
 
                 <div style="background-color:@cc.ColorHex; padding:16px; border-radius:15px; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3);" @onclick="() => OpenCreditOptions(cc)">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -60,12 +60,12 @@
                     <div style="display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#f4f4f4; flex-wrap:wrap;">
                         <span>Stmt: day @cc.StatementDay</span>
                         <span>Grace: @cc.GraceDays d</span>
-                        <span>Next Due: @(nextDueDate.HasValue ? nextDueDate.Value.ToString("dd MMM") : "-")</span>
+                        <span>@dueLabel</span>
                     </div>
 
                     @if (dueSoon > 0)
                     {
-                        <div style="margin-top:8px; font-size:11px; color:#ffe082;">Pay soon: @dueSoon.ToString("N2")</div>
+                        <div style="margin-top:8px; font-size:11px; color:#ffe082;">Pay soon (next cycle): @dueSoon.ToString("N2")</div>
                     }
                 </div>
             }
@@ -254,6 +254,31 @@
             <input type="number" @bind="creditTransAmount" class="input-dark" placeholder="@L.T("Amount")" />
             <input @bind="creditTransDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
 
+            @if (!isCreditPayment)
+            {
+                <div style="background:#2a2a2a; border:1px solid #3a3a3a; border-radius:10px; padding:10px; margin-bottom:10px;">
+                    <label style="display:flex; align-items:center; gap:8px; color:#ddd; font-size:13px; margin-bottom:8px;">
+                        <input type="checkbox" @bind="convertCreditOutToInstallment" style="accent-color:#00E676;" />
+                        Convert this credit-out to installments
+                    </label>
+
+                    @if (convertCreditOutToInstallment)
+                    {
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" min="1" max="120" @bind="installmentMonths" class="input-dark" style="flex:1; margin-bottom:0;" placeholder="Months" />
+                            <input type="date" @bind="installmentFirstDueDate" class="input-dark" style="flex:1; margin-bottom:0;" />
+                        </div>
+                        <div style="font-size:11px; color:#aaa; margin-top:6px;">
+                            Monthly preview: @GetInstallmentPreviewAmount().ToString("N2")
+                        </div>
+                        <label style="display:flex; align-items:center; gap:8px; color:#ddd; font-size:12px; margin-top:8px;">
+                            <input type="checkbox" @bind="createInstallmentBillNow" style="accent-color:#00E676;" />
+                            Create one installment bill now (manual)
+                        </label>
+                    }
+                </div>
+            }
+
             <div style="display:flex; gap:10px;">
                 <button class="btn-primary" style="flex:1;" @onclick="SaveCreditTransaction">@L.T("Save")</button>
                 <button class="btn-trans" style="flex:1;" @onclick="() => isCreditTransModalVisible = false">@L.T("Cancel")</button>
@@ -293,6 +318,10 @@
                         <div style="font-size:11px; color:#aaa; margin-top:6px;">
                             Monthly preview: @GetInstallmentPreviewAmount().ToString("N2")
                         </div>
+                        <label style="display:flex; align-items:center; gap:8px; color:#ddd; font-size:12px; margin-top:8px;">
+                            <input type="checkbox" @bind="createInstallmentBillNow" style="accent-color:#00E676;" />
+                            Create one installment bill now (manual)
+                        </label>
                     }
                 </div>
             }
@@ -621,6 +650,8 @@
     string creditTransferDesc = "";
     DateTime creditTransferDate = DateTime.Now;
     bool convertCashoutToInstallment = false;
+    bool convertCreditOutToInstallment = false;
+    bool createInstallmentBillNow = false;
     int installmentMonths = 12;
     DateTime installmentFirstDueDate = DateTime.Now.AddMonths(1);
     Transaction selectedTrans = new Transaction();
@@ -655,46 +686,63 @@
 
     decimal GetCreditDueSoonAmount(CreditCard cc)
     {
-        var now = DateTime.Now.Date;
         var nextDue = GetNextDueDateForCard(cc);
         if (!nextDue.HasValue) return 0;
 
         var targetDue = nextDue.Value.Date;
-        return myData.History
-            .Where(x => x.PrimaryCreditCardId == cc.Id
-                && x.CreditDueDate.HasValue
-                && x.CreditDueDate.Value.Date == targetDue
-                && IsCreditChargeKind(x.Kind))
+        return GetCreditDueEligibleTransactions(cc)
+            .Where(x => x.CreditDueDate!.Value.Date == targetDue)
             .Sum(x => x.Amount);
     }
 
     DateTime? GetNextDueDateForCard(CreditCard cc)
     {
-        var upcoming = myData.History
+        var dueDates = GetCreditDueEligibleTransactions(cc)
+            .Select(x => x.CreditDueDate!.Value.Date)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        if (!dueDates.Any()) return null;
+        return dueDates[0];
+    }
+
+    string GetDueLabelForCard(CreditCard cc)
+    {
+        var dueDate = GetNextDueDateForCard(cc);
+        if (!dueDate.HasValue) return "Next Due: -";
+
+        var today = DateTime.Now.Date;
+        if (dueDate.Value.Date == today)
+            return $"Due Today: {dueDate.Value:dd MMM}";
+
+        return $"Next Due: {dueDate.Value:dd MMM}";
+    }
+
+    IEnumerable<Transaction> GetCreditDueEligibleTransactions(CreditCard cc)
+    {
+        var today = DateTime.Now.Date;
+        return myData.History
             .Where(x => x.PrimaryCreditCardId == cc.Id
                 && x.CreditDueDate.HasValue
-                && x.CreditDueDate.Value.Date >= DateTime.Now.Date
-                && IsCreditChargeKind(x.Kind))
-            .OrderBy(x => x.CreditDueDate)
-            .Select(x => x.CreditDueDate)
-            .FirstOrDefault();
-
-        return upcoming;
+                && x.CreditDueDate.Value.Date >= today
+                && !x.IsInstallmentRelated
+                && IsCreditChargeKind(x.Kind));
     }
 
     static bool IsCreditChargeKind(string? kind)
     {
         return string.Equals(kind, "CreditExpense", StringComparison.OrdinalIgnoreCase)
             || string.Equals(kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(kind, "BillPaidByCredit", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(kind, "InstallmentPayment", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(kind, "BillPaidByCredit", StringComparison.OrdinalIgnoreCase);
     }
 
     decimal GetInstallmentPreviewAmount()
     {
-        if (creditTransferAmount <= 0) return 0;
+        var sourceAmount = isCreditTransferModalVisible ? creditTransferAmount : creditTransAmount;
+        if (sourceAmount <= 0) return 0;
         var months = Math.Clamp(installmentMonths, 1, 120);
-        return Math.Round(creditTransferAmount / months, 2);
+        return Math.Round(sourceAmount / months, 2);
     }
 
     void ShowAddCreditModal()
@@ -820,6 +868,10 @@
         creditTransAmount = 0;
         creditTransDesc = "";
         creditTransDate = DateTime.Now;
+        convertCreditOutToInstallment = false;
+        createInstallmentBillNow = false;
+        installmentMonths = 12;
+        installmentFirstDueDate = DateTime.Now.AddMonths(1);
         if (selectedCreditCard != null) selectedCreditCardId = selectedCreditCard.Id;
         isCreditTransModalVisible = true;
     }
@@ -830,6 +882,10 @@
 
         var card = myData.CreditCards.FirstOrDefault(x => x.Id == selectedCreditCardId);
         if (card == null) return;
+
+        var isInstallmentCreditOut = !isCreditPayment && convertCreditOutToInstallment;
+        var installmentPlanId = isInstallmentCreditOut ? Guid.NewGuid().ToString() : null;
+        var installmentTotalCount = isInstallmentCreditOut ? Math.Clamp(installmentMonths, 1, 120) : (int?)null;
 
         if (isCreditPayment)
         {
@@ -844,7 +900,7 @@
         var statementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransDate, card.StatementDay);
         var dueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransDate, card.StatementDay, card.GraceDays);
 
-        myData.History.Add(new Transaction
+        var tx = new Transaction
         {
             Kind = isCreditPayment ? "CreditPayment" : "CreditExpense",
             Desc = string.IsNullOrWhiteSpace(creditTransDesc)
@@ -857,9 +913,28 @@
             PrimaryCreditCardId = card.Id,
             PrimaryCreditCardName = card.Name,
             CreditStatementDate = statementDate,
-            CreditDueDate = dueDate,
+            CreditDueDate = isInstallmentCreditOut ? null : dueDate,
+            IsCreditGraceEligible = !isCreditPayment,
+            IsInstallmentRelated = isInstallmentCreditOut,
+            InstallmentPlanId = installmentPlanId,
+            InstallmentNumber = isInstallmentCreditOut ? 0 : null,
+            InstallmentTotalCount = installmentTotalCount,
             Date = creditTransDate
-        });
+        };
+
+        myData.History.Add(tx);
+
+        if (isInstallmentCreditOut && createInstallmentBillNow)
+        {
+            CreateSingleInstallmentBill(
+                card,
+                creditTransAmount,
+                installmentTotalCount ?? 1,
+                installmentFirstDueDate,
+                installmentPlanId ?? Guid.NewGuid().ToString(),
+                tx.Id,
+                string.IsNullOrWhiteSpace(creditTransDesc) ? $"Installment {card.Name}" : creditTransDesc.Trim());
+        }
 
         await Firebase.Save(myData);
         isCreditTransModalVisible = false;
@@ -875,12 +950,13 @@
         creditTransferDesc = "";
         creditTransferDate = DateTime.Now;
         convertCashoutToInstallment = false;
+        createInstallmentBillNow = false;
         installmentMonths = 12;
         installmentFirstDueDate = DateTime.Now.AddMonths(1);
         isCreditTransferModalVisible = true;
     }
 
-    void CreateInstallmentBillsForCashAdvance(
+    void CreateSingleInstallmentBill(
         CreditCard card,
         decimal totalAmount,
         int months,
@@ -891,40 +967,28 @@
     {
         var safeMonths = Math.Clamp(months, 1, 120);
         var normalizedFirstDue = firstDueDate.Date;
-        if (normalizedFirstDue < creditTransferDate.Date)
-            normalizedFirstDue = creditTransferDate.Date.AddMonths(1);
+        var amount = safeMonths == 1
+            ? totalAmount
+            : Math.Round(totalAmount / safeMonths, 2);
 
-        var baseAmount = Math.Round(totalAmount / safeMonths, 2);
-        var consumed = 0m;
-
-        for (int i = 1; i <= safeMonths; i++)
+        myData.Bills.Add(new Bill
         {
-            var amount = i == safeMonths
-                ? Math.Max(0, totalAmount - consumed)
-                : baseAmount;
-
-            consumed += amount;
-            var due = normalizedFirstDue.AddMonths(i - 1);
-
-            myData.Bills.Add(new Bill
-            {
-                Name = string.IsNullOrWhiteSpace(notePrefix)
-                    ? $"Installment {i}/{safeMonths} • {card.Name}"
-                    : $"{notePrefix} • {i}/{safeMonths}",
-                Amount = amount,
-                DueDate = due,
-                Frequency = "OneTime",
-                Category = "Installment",
-                Notes = $"Auto-generated installment for {card.Name}",
-                IsInstallment = true,
-                InstallmentPlanId = planId,
-                InstallmentNumber = i,
-                InstallmentTotalCount = safeMonths,
-                LinkedCreditCardId = card.Id,
-                LinkedCreditCardName = card.Name,
-                LinkedTransactionId = linkedTransactionId
-            });
-        }
+            Name = string.IsNullOrWhiteSpace(notePrefix)
+                ? $"Installment 1/{safeMonths} • {card.Name}"
+                : $"{notePrefix} • 1/{safeMonths}",
+            Amount = amount,
+            DueDate = normalizedFirstDue,
+            Frequency = "OneTime",
+            Category = "Installment",
+            Notes = $"Manually created installment bill for {card.Name}",
+            IsInstallment = true,
+            InstallmentPlanId = planId,
+            InstallmentNumber = 1,
+            InstallmentTotalCount = safeMonths,
+            LinkedCreditCardId = card.Id,
+            LinkedCreditCardName = card.Name,
+            LinkedTransactionId = linkedTransactionId
+        });
     }
 
     async Task SaveCreditTransfer()
@@ -986,7 +1050,7 @@
                 TargetAccountId = acc.Id,
                 TargetAccountName = acc.Name,
                 CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransferDate, card.StatementDay),
-                CreditDueDate = CreditCycleHelper.GetCashAdvanceDueDateForTransaction(creditTransferDate, card.StatementDay),
+                CreditDueDate = convertCashoutToInstallment ? null : CreditCycleHelper.GetCashAdvanceDueDateForTransaction(creditTransferDate, card.StatementDay),
                 IsCreditGraceEligible = false,
                 IsInstallmentRelated = convertCashoutToInstallment,
                 InstallmentPlanId = planId,
@@ -997,9 +1061,9 @@
 
             myData.History.Add(transferTx);
 
-            if (convertCashoutToInstallment)
+            if (convertCashoutToInstallment && createInstallmentBillNow)
             {
-                CreateInstallmentBillsForCashAdvance(
+                CreateSingleInstallmentBill(
                     card,
                     creditTransferAmount,
                     installmentMonths,

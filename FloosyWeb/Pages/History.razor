@@ -312,15 +312,21 @@
             return $"{L.T("From")} {GetPrimaryAccountLabel(t)} → {L.T("To")} {GetTargetAccountLabel(t)}";
         }
 
+        if (t.IsInstallmentRelated && t.InstallmentTotalCount.HasValue)
+        {
+            var installmentNo = t.InstallmentNumber.GetValueOrDefault();
+            if (installmentNo <= 0)
+            {
+                return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Installment plan ({t.InstallmentTotalCount} months)";
+            }
+
+            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Installment {installmentNo}/{t.InstallmentTotalCount}";
+        }
+
         if (t.CreditDueDate.HasValue)
         {
             var gracePart = t.IsCreditGraceEligible ? "" : " • No grace";
             return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Due: {t.CreditDueDate.Value:dd MMM yyyy}{gracePart}";
-        }
-
-        if (t.IsInstallmentRelated && t.InstallmentNumber.HasValue && t.InstallmentTotalCount.HasValue)
-        {
-            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Installment {t.InstallmentNumber}/{t.InstallmentTotalCount}";
         }
 
         return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)}";
