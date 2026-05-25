@@ -125,11 +125,19 @@
                     {
                         <span class="badge">@bill.Frequency</span>
                     }
+                    @if (bill.IsInstallment)
+                    {
+                        <span class="badge" style="border-color:#b388ff; color:#b388ff;">Installment @bill.InstallmentNumber/@bill.InstallmentTotalCount</span>
+                    }
                     @if (bill.IsShared)
                     {
                         <span class="badge" style="border-color:#3498db; color:#3498db;">@L.T("Shared")</span>
                     }
                 </div>
+                @if (bill.IsInstallment && !string.IsNullOrWhiteSpace(bill.LinkedCreditCardName))
+                {
+                    <div style="font-size:11px; color:#b7b7b7; margin-top:6px;">Linked credit: @bill.LinkedCreditCardName</div>
+                }
                 @if (bill.IsShared)
                 {
                     <div style="margin-top:8px; padding-top:8px; border-top:1px solid #333; font-size:0.8em; color:#bbb;">
@@ -344,9 +352,12 @@
         };
 
     IEnumerable<KeyValuePair<string, string>> PayAccountOptions =>
-        myData.Accounts
-            .Select(a => new KeyValuePair<string, string>($"acc:{a.Id}", $"Account • {a.Name} ({a.Balance:N0})"))
-            .Concat(myData.CreditCards.Select(c => new KeyValuePair<string, string>($"cc:{c.Id}", $"Credit • {c.Name} (Avail {c.AvailableCredit:N0})")));
+        (selectedBillToPay?.IsInstallment ?? false)
+            ? myData.Accounts
+                .Select(a => new KeyValuePair<string, string>($"acc:{a.Id}", $"Account • {a.Name} ({a.Balance:N0})"))
+            : myData.Accounts
+                .Select(a => new KeyValuePair<string, string>($"acc:{a.Id}", $"Account • {a.Name} ({a.Balance:N0})"))
+                .Concat(myData.CreditCards.Select(c => new KeyValuePair<string, string>($"cc:{c.Id}", $"Credit • {c.Name} (Avail {c.AvailableCredit:N0})")));
 
     protected override async Task OnInitializedAsync()
     {
@@ -594,16 +605,37 @@
                     return;
                 }
                 acc.Balance -= selectedBillToPay.Amount;
+
+                CreditCard? installmentCard = null;
+                if (selectedBillToPay.IsInstallment && !string.IsNullOrWhiteSpace(selectedBillToPay.LinkedCreditCardId))
+                {
+                    installmentCard = myData.CreditCards.FirstOrDefault(x => x.Id == selectedBillToPay.LinkedCreditCardId);
+                    if (installmentCard != null)
+                    {
+                        installmentCard.OutstandingBalance -= selectedBillToPay.Amount;
+                        if (installmentCard.OutstandingBalance < 0) installmentCard.OutstandingBalance = 0;
+                    }
+                }
+
                 myData.History.Add(new Transaction
                 {
-                    Kind = "Bill",
-                    Desc = $"Paid: {selectedBillToPay.Name}",
-                    Category = "Bills",
+                    Kind = selectedBillToPay.IsInstallment ? "InstallmentPayment" : "Bill",
+                    Desc = selectedBillToPay.IsInstallment
+                        ? $"Installment paid: {selectedBillToPay.Name}"
+                        : $"Paid: {selectedBillToPay.Name}",
+                    Category = selectedBillToPay.IsInstallment ? "Installment" : "Bills",
                     Amount = selectedBillToPay.Amount,
                     AmountDisplay = $"-{selectedBillToPay.Amount:N2}",
                     ColorHex = "#e74c3c",
                     PrimaryAccountId = acc.Id,
                     PrimaryAccountName = acc.Name,
+                    PrimaryCreditCardId = installmentCard?.Id,
+                    PrimaryCreditCardName = installmentCard?.Name,
+                    IsInstallmentRelated = selectedBillToPay.IsInstallment,
+                    InstallmentPlanId = selectedBillToPay.IsInstallment ? selectedBillToPay.InstallmentPlanId : null,
+                    InstallmentNumber = selectedBillToPay.IsInstallment ? selectedBillToPay.InstallmentNumber : null,
+                    InstallmentTotalCount = selectedBillToPay.IsInstallment ? selectedBillToPay.InstallmentTotalCount : null,
+                    LinkedBillId = selectedBillToPay.IsInstallment ? selectedBillToPay.Id : null,
                     Date = DateTime.Now
                 });
 
@@ -614,6 +646,14 @@
             }
             else if (payFromAccountId.StartsWith("cc:"))
             {
+                if (selectedBillToPay.IsInstallment)
+                {
+                    messageTitle = L.T("Error");
+                    messageBody = "Installment bills can only be paid from normal accounts.";
+                    isMessageVisible = true;
+                    return;
+                }
+
                 var cardId = payFromAccountId.Replace("cc:", "");
                 var card = myData.CreditCards.FirstOrDefault(x => x.Id == cardId);
                 if (card == null) return;

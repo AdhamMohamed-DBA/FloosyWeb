@@ -244,6 +244,7 @@
 
         return string.Equals(t.Kind, "Expense", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "Bill", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "InstallmentPayment", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "CreditExpense", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
@@ -313,7 +314,13 @@
 
         if (t.CreditDueDate.HasValue)
         {
-            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Due: {t.CreditDueDate.Value:dd MMM yyyy}";
+            var gracePart = t.IsCreditGraceEligible ? "" : " • No grace";
+            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Due: {t.CreditDueDate.Value:dd MMM yyyy}{gracePart}";
+        }
+
+        if (t.IsInstallmentRelated && t.InstallmentNumber.HasValue && t.InstallmentTotalCount.HasValue)
+        {
+            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Installment {t.InstallmentNumber}/{t.InstallmentTotalCount}";
         }
 
         return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)}";

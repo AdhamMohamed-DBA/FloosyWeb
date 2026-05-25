@@ -276,6 +276,27 @@
                 <option value="CreditToAccount">Credit → Account (Cash advance)</option>
             </select>
 
+            @if (creditTransferDirection == "CreditToAccount")
+            {
+                <div style="background:#2a2a2a; border:1px solid #3a3a3a; border-radius:10px; padding:10px; margin-bottom:10px;">
+                    <label style="display:flex; align-items:center; gap:8px; color:#ddd; font-size:13px; margin-bottom:8px;">
+                        <input type="checkbox" @bind="convertCashoutToInstallment" style="accent-color:#00E676;" />
+                        Convert this cash-out to installments
+                    </label>
+
+                    @if (convertCashoutToInstallment)
+                    {
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" min="1" max="120" @bind="installmentMonths" class="input-dark" style="flex:1; margin-bottom:0;" placeholder="Months" />
+                            <input type="date" @bind="installmentFirstDueDate" class="input-dark" style="flex:1; margin-bottom:0;" />
+                        </div>
+                        <div style="font-size:11px; color:#aaa; margin-top:6px;">
+                            Monthly preview: @GetInstallmentPreviewAmount().ToString("N2")
+                        </div>
+                    }
+                </div>
+            }
+
             <select @bind="creditTransferAccountId" class="input-dark">
                 @foreach (var a in myData.Accounts)
                 {
@@ -599,6 +620,9 @@
     decimal creditTransferAmount = 0;
     string creditTransferDesc = "";
     DateTime creditTransferDate = DateTime.Now;
+    bool convertCashoutToInstallment = false;
+    int installmentMonths = 12;
+    DateTime installmentFirstDueDate = DateTime.Now.AddMonths(1);
     Transaction selectedTrans = new Transaction();
     string refundAccountId = "";
     bool isIncomeTrans = false;
@@ -640,19 +664,37 @@
             .Where(x => x.PrimaryCreditCardId == cc.Id
                 && x.CreditDueDate.HasValue
                 && x.CreditDueDate.Value.Date == targetDue
-                && (x.Kind == "CreditExpense" || x.Kind == "CreditTransferOut" || x.Kind == "BillPaidByCredit"))
+                && IsCreditChargeKind(x.Kind))
             .Sum(x => x.Amount);
     }
 
     DateTime? GetNextDueDateForCard(CreditCard cc)
     {
         var upcoming = myData.History
-            .Where(x => x.PrimaryCreditCardId == cc.Id && x.CreditDueDate.HasValue && x.CreditDueDate.Value.Date >= DateTime.Now.Date)
+            .Where(x => x.PrimaryCreditCardId == cc.Id
+                && x.CreditDueDate.HasValue
+                && x.CreditDueDate.Value.Date >= DateTime.Now.Date
+                && IsCreditChargeKind(x.Kind))
             .OrderBy(x => x.CreditDueDate)
             .Select(x => x.CreditDueDate)
             .FirstOrDefault();
 
         return upcoming;
+    }
+
+    static bool IsCreditChargeKind(string? kind)
+    {
+        return string.Equals(kind, "CreditExpense", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(kind, "BillPaidByCredit", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(kind, "InstallmentPayment", StringComparison.OrdinalIgnoreCase);
+    }
+
+    decimal GetInstallmentPreviewAmount()
+    {
+        if (creditTransferAmount <= 0) return 0;
+        var months = Math.Clamp(installmentMonths, 1, 120);
+        return Math.Round(creditTransferAmount / months, 2);
     }
 
     void ShowAddCreditModal()
@@ -832,7 +874,57 @@
         creditTransferAmount = 0;
         creditTransferDesc = "";
         creditTransferDate = DateTime.Now;
+        convertCashoutToInstallment = false;
+        installmentMonths = 12;
+        installmentFirstDueDate = DateTime.Now.AddMonths(1);
         isCreditTransferModalVisible = true;
+    }
+
+    void CreateInstallmentBillsForCashAdvance(
+        CreditCard card,
+        decimal totalAmount,
+        int months,
+        DateTime firstDueDate,
+        string planId,
+        string? linkedTransactionId,
+        string? notePrefix)
+    {
+        var safeMonths = Math.Clamp(months, 1, 120);
+        var normalizedFirstDue = firstDueDate.Date;
+        if (normalizedFirstDue < creditTransferDate.Date)
+            normalizedFirstDue = creditTransferDate.Date.AddMonths(1);
+
+        var baseAmount = Math.Round(totalAmount / safeMonths, 2);
+        var consumed = 0m;
+
+        for (int i = 1; i <= safeMonths; i++)
+        {
+            var amount = i == safeMonths
+                ? Math.Max(0, totalAmount - consumed)
+                : baseAmount;
+
+            consumed += amount;
+            var due = normalizedFirstDue.AddMonths(i - 1);
+
+            myData.Bills.Add(new Bill
+            {
+                Name = string.IsNullOrWhiteSpace(notePrefix)
+                    ? $"Installment {i}/{safeMonths} • {card.Name}"
+                    : $"{notePrefix} • {i}/{safeMonths}",
+                Amount = amount,
+                DueDate = due,
+                Frequency = "OneTime",
+                Category = "Installment",
+                Notes = $"Auto-generated installment for {card.Name}",
+                IsInstallment = true,
+                InstallmentPlanId = planId,
+                InstallmentNumber = i,
+                InstallmentTotalCount = safeMonths,
+                LinkedCreditCardId = card.Id,
+                LinkedCreditCardName = card.Name,
+                LinkedTransactionId = linkedTransactionId
+            });
+        }
     }
 
     async Task SaveCreditTransfer()
@@ -866,7 +958,8 @@
                 TargetCreditCardId = card.Id,
                 TargetCreditCardName = card.Name,
                 CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransferDate, card.StatementDay),
-                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransferDate, card.StatementDay, card.GraceDays),
+                CreditDueDate = null,
+                IsCreditGraceEligible = false,
                 Date = creditTransferDate
             });
         }
@@ -877,7 +970,8 @@
             acc.Balance += creditTransferAmount;
             card.OutstandingBalance += creditTransferAmount;
 
-            myData.History.Add(new Transaction
+            var planId = convertCashoutToInstallment ? Guid.NewGuid().ToString() : null;
+            var transferTx = new Transaction
             {
                 Kind = "CreditTransferOut",
                 Desc = string.IsNullOrWhiteSpace(creditTransferDesc)
@@ -892,9 +986,28 @@
                 TargetAccountId = acc.Id,
                 TargetAccountName = acc.Name,
                 CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransferDate, card.StatementDay),
-                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransferDate, card.StatementDay, card.GraceDays),
+                CreditDueDate = CreditCycleHelper.GetCashAdvanceDueDateForTransaction(creditTransferDate, card.StatementDay),
+                IsCreditGraceEligible = false,
+                IsInstallmentRelated = convertCashoutToInstallment,
+                InstallmentPlanId = planId,
+                InstallmentNumber = convertCashoutToInstallment ? 0 : null,
+                InstallmentTotalCount = convertCashoutToInstallment ? Math.Clamp(installmentMonths, 1, 120) : null,
                 Date = creditTransferDate
-            });
+            };
+
+            myData.History.Add(transferTx);
+
+            if (convertCashoutToInstallment)
+            {
+                CreateInstallmentBillsForCashAdvance(
+                    card,
+                    creditTransferAmount,
+                    installmentMonths,
+                    installmentFirstDueDate,
+                    planId ?? Guid.NewGuid().ToString(),
+                    transferTx.Id,
+                    string.IsNullOrWhiteSpace(creditTransferDesc) ? $"Installment {card.Name}" : creditTransferDesc.Trim());
+            }
         }
 
         await Firebase.Save(myData);

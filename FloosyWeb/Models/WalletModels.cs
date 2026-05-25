@@ -98,6 +98,15 @@ public class Bill
     public bool IsShared { get; set; } = false;
     public string SharedWith { get; set; } = "";
     public ObservableCollection<BillParticipant> Participants { get; set; } = [];
+
+    // Installment metadata (used for auto-generated credit cash-out installments)
+    public bool IsInstallment { get; set; } = false;
+    public string InstallmentPlanId { get; set; } = "";
+    public int InstallmentNumber { get; set; }
+    public int InstallmentTotalCount { get; set; }
+    public string? LinkedCreditCardId { get; set; }
+    public string? LinkedCreditCardName { get; set; }
+    public string? LinkedTransactionId { get; set; }
 }
 
 public class BillParticipant
@@ -141,6 +150,19 @@ public class Transaction
     /// Due date to pay this credit transaction cycle to avoid interest.
     /// </summary>
     public DateTime? CreditDueDate { get; set; }
+
+    /// <summary>
+    /// True for purchase-like operations that benefit from statement + grace window.
+    /// False for cash-advance like operations (interest can start immediately).
+    /// </summary>
+    public bool IsCreditGraceEligible { get; set; } = true;
+
+    // Installment linkage metadata
+    public bool IsInstallmentRelated { get; set; } = false;
+    public string? InstallmentPlanId { get; set; }
+    public int? InstallmentNumber { get; set; }
+    public int? InstallmentTotalCount { get; set; }
+    public string? LinkedBillId { get; set; }
 
     public DateTime Date { get; set; } = DateTime.Now;
 }
@@ -251,5 +273,25 @@ public static class CreditCycleHelper
     {
         var statementDate = GetStatementDateForTransaction(transactionDate, statementDay);
         return statementDate.AddDays(NormalizeGraceDays(graceDays));
+    }
+
+    /// <summary>
+    /// Cash-advance style due date (no purchase grace days).
+    /// The amount lands on the statement close date directly.
+    /// </summary>
+    public static DateTime GetCashAdvanceDueDateForTransaction(DateTime transactionDate, int statementDay)
+    {
+        return GetStatementDateForTransaction(transactionDate, statementDay);
+    }
+
+    public static DateTime GetDueDateForCreditTransaction(
+        DateTime transactionDate,
+        int statementDay,
+        int graceDays,
+        bool isGraceEligible)
+    {
+        return isGraceEligible
+            ? GetDueDateForTransaction(transactionDate, statementDay, graceDays)
+            : GetCashAdvanceDueDateForTransaction(transactionDate, statementDay);
     }
 }
