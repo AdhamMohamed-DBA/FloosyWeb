@@ -23,6 +23,56 @@
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; width:100%;">
+        <h3 style="margin:0;">Credit Cards 💳</h3>
+        <button class="btn-trans btn-auto" style="color:#B388FF; font-weight:bold; font-size:16px; padding:5px 10px; margin:0;" @onclick="ShowAddCreditModal">+ @L.T("Add")</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+        @if (!myData.CreditCards.Any())
+        {
+            <div style="background:#181818; border:1px dashed #444; border-radius:12px; padding:14px; color:#aaa; font-size:12px; text-align:center;">
+                No credit cards yet.
+            </div>
+        }
+        else
+        {
+            @foreach (var cc in myData.CreditCards.OrderBy(x => x.SortOrder))
+            {
+                var utilization = cc.CreditLimit <= 0 ? 0 : Math.Min(100, (cc.OutstandingBalance / cc.CreditLimit) * 100);
+                var dueSoon = GetCreditDueSoonAmount(cc);
+                var nextDueDate = GetNextDueDateForCard(cc);
+
+                <div style="background-color:@cc.ColorHex; padding:16px; border-radius:15px; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3);" @onclick="() => OpenCreditOptions(cc)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-weight:bold; font-size:1.1em; color:white; text-shadow:0 1px 2px rgba(0,0,0,0.5);">@cc.Name</span>
+                        <span style="font-size:11px; color:#f5f5f5;">Limit: @cc.CreditLimit.ToString("N2")</span>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#fff; margin-bottom:4px;">
+                        <span>Outstanding: @cc.OutstandingBalance.ToString("N2")</span>
+                        <span>Available: @cc.AvailableCredit.ToString("N2")</span>
+                    </div>
+
+                    <div style="width:100%; background:rgba(0,0,0,0.25); height:8px; border-radius:6px; overflow:hidden; margin-bottom:8px;">
+                        <div style="width:@utilization%; background:#ffcc80; height:100%;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#f4f4f4; flex-wrap:wrap;">
+                        <span>Stmt: day @cc.StatementDay</span>
+                        <span>Grace: @cc.GraceDays d</span>
+                        <span>Next Due: @(nextDueDate.HasValue ? nextDueDate.Value.ToString("dd MMM") : "-")</span>
+                    </div>
+
+                    @if (dueSoon > 0)
+                    {
+                        <div style="margin-top:8px; font-size:11px; color:#ffe082;">Pay soon: @dueSoon.ToString("N2")</div>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; width:100%;">
         <h3 style="margin:0;">@L.T("MyAccounts")</h3>
         <button class="btn-trans btn-auto" style="color:#00E676; font-weight:bold; font-size:16px; padding: 5px 10px; margin:0;" @onclick="ShowAddAccountModal" aria-label="Add a new account">+ @L.T("Add")</button>
     </div>
@@ -101,6 +151,152 @@
             </div>
             <button class="btn-option" style="color:#e74c3c;" @onclick="() => isDeleteAccConfirmVisible = true">🗑️ @L.T("DeleteAccount")</button>
             <button class="btn-trans" style="margin-top:10px;" @onclick="() => isAccOptionsVisible = false">@L.T("Close")</button>
+        </div>
+    </div>
+}
+
+@if (isAddCreditModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>New Credit Card 💳</h3>
+            <input @bind="newCreditName" class="input-dark" placeholder="Card name" />
+            <input type="number" @bind="newCreditLimit" class="input-dark" placeholder="Credit limit" />
+            <input type="number" @bind="newCreditOutstanding" class="input-dark" placeholder="Current owed (optional)" />
+
+            <div style="display:flex; gap:8px;">
+                <input type="number" min="1" max="28" @bind="newCreditStatementDay" class="input-dark" style="flex:1;" placeholder="Statement day" />
+                <input type="number" min="0" max="90" @bind="newCreditGraceDays" class="input-dark" style="flex:1;" placeholder="Grace days" />
+            </div>
+
+            <label style="color:gray; font-size:12px;">@L.T("PickColor")</label>
+            <input type="color" @bind="newCreditColor" style="width:100%; height:40px; border:none; border-radius:8px; cursor:pointer; margin-bottom:10px;" />
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveNewCreditCard">@L.T("Create")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isAddCreditModalVisible = false">@L.T("Cancel")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isCreditOptionsVisible)
+{
+    <div class="modal-backdrop" @onclick="() => isCreditOptionsVisible = false">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h3>@(selectedCreditCard?.Name ?? "Credit")</h3>
+
+            <button class="btn-option" @onclick="() => ShowCreditTransactionModal(false)">🛒 Credit Out (use card)</button>
+            <button class="btn-option" @onclick="() => ShowCreditTransactionModal(true)">💸 Credit In (pay card)</button>
+            <button class="btn-option" @onclick="ShowCreditTransferModal">🔁 Transfer account ↔ credit</button>
+            <button class="btn-option" @onclick="PrepareEditCredit">✏️ Edit limit / owed / cycle</button>
+
+            <div style="padding:15px; border-bottom:1px solid #333;">
+                <label style="font-size:12px; color:gray;">@L.T("ChangeColor")</label>
+                <input type="color" @bind="selectedCreditCard!.ColorHex" @oninput="async (e) => { if (selectedCreditCard != null && e.Value != null) { selectedCreditCard.ColorHex = (string)e.Value; await Firebase.Save(myData); } }" style="width:100%; height:30px; border:none; cursor:pointer;" />
+            </div>
+
+            <button class="btn-option" style="color:#e74c3c;" @onclick="() => isDeleteCreditConfirmVisible = true">🗑️ Delete credit card</button>
+            <button class="btn-trans" style="margin-top:10px;" @onclick="() => isCreditOptionsVisible = false">@L.T("Close")</button>
+        </div>
+    </div>
+}
+
+@if (isEditCreditModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Edit Credit Card</h3>
+            <input @bind="editCreditName" class="input-dark" placeholder="Card name" />
+            <input type="number" @bind="editCreditLimit" class="input-dark" placeholder="Credit limit" />
+            <input type="number" @bind="editCreditOutstanding" class="input-dark" placeholder="Outstanding" />
+            <div style="display:flex; gap:8px;">
+                <input type="number" min="1" max="28" @bind="editCreditStatementDay" class="input-dark" style="flex:1;" placeholder="Statement day" />
+                <input type="number" min="0" max="90" @bind="editCreditGraceDays" class="input-dark" style="flex:1;" placeholder="Grace days" />
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveCreditEdits">@L.T("Save")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isEditCreditModalVisible = false">@L.T("Cancel")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isDeleteCreditConfirmVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content" style="border:1px solid #e74c3c;">
+            <h3 style="color:#e74c3c;">Delete credit card?</h3>
+            <p style="color:#ccc;">Are you sure to delete <b>@selectedCreditCard?.Name</b>?</p>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#e74c3c; flex:1;" @onclick="ExecuteDeleteCredit">@L.T("YesDelete")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isDeleteCreditConfirmVisible = false">@L.T("Cancel")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isCreditTransModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">@(isCreditPayment ? "Credit Payment (In)" : "Credit Expense (Out)")</h3>
+            <label style="color:gray; font-size:12px;">@L.T("Date")</label>
+            <input type="date" @bind="creditTransDate" class="input-dark" />
+
+            <select @bind="selectedCreditCardId" class="input-dark">
+                @foreach (var c in myData.CreditCards.OrderBy(x => x.SortOrder))
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </select>
+
+            <input type="number" @bind="creditTransAmount" class="input-dark" placeholder="@L.T("Amount")" />
+            <input @bind="creditTransDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveCreditTransaction">@L.T("Save")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isCreditTransModalVisible = false">@L.T("Cancel")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isCreditTransferModalVisible)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Transfer Account ↔ Credit</h3>
+
+            <label style="color:gray; font-size:12px;">@L.T("Date")</label>
+            <input type="date" @bind="creditTransferDate" class="input-dark" />
+
+            <select @bind="creditTransferDirection" class="input-dark">
+                <option value="AccountToCredit">Account → Credit (Pay card)</option>
+                <option value="CreditToAccount">Credit → Account (Cash advance)</option>
+            </select>
+
+            <select @bind="creditTransferAccountId" class="input-dark">
+                @foreach (var a in myData.Accounts)
+                {
+                    <option value="@a.Id">Account: @a.Name</option>
+                }
+            </select>
+
+            <select @bind="creditTransferCardId" class="input-dark">
+                @foreach (var c in myData.CreditCards.OrderBy(x => x.SortOrder))
+                {
+                    <option value="@c.Id">Credit: @c.Name</option>
+                }
+            </select>
+
+            <input type="number" @bind="creditTransferAmount" class="input-dark" placeholder="@L.T("Amount")" />
+            <input @bind="creditTransferDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="flex:1;" @onclick="SaveCreditTransfer">@L.T("Confirm")</button>
+                <button class="btn-trans" style="flex:1;" @onclick="() => isCreditTransferModalVisible = false">@L.T("Cancel")</button>
+            </div>
         </div>
     </div>
 }
@@ -213,6 +409,10 @@
                 @foreach (var acc in myData.Accounts)
                 {
                     <option value="@acc.Id">@(isIncomeTrans ? L.T("DeductFrom") : L.T("RefundTo")) @acc.Name</option>
+                }
+                @foreach (var cc in myData.CreditCards.OrderBy(x => x.SortOrder))
+                {
+                    <option value="cc:@cc.Id">@(isIncomeTrans ? L.T("DeductFrom") : L.T("RefundTo")) Credit • @cc.Name</option>
                 }
             </select>
             <div style="display:flex; gap:10px;">
@@ -356,6 +556,14 @@
     bool isTransferModalVisible = false;
     bool isIncome = true;
 
+    bool isAddCreditModalVisible = false;
+    bool isCreditOptionsVisible = false;
+    bool isEditCreditModalVisible = false;
+    bool isDeleteCreditConfirmVisible = false;
+    bool isCreditTransModalVisible = false;
+    bool isCreditTransferModalVisible = false;
+    bool isCreditPayment = false;
+
     // Data Vars
     string newAccName = "", newAccColor = "#00E676";
     decimal newAccBalance;
@@ -365,6 +573,32 @@
     decimal transAmount;
     string transferFromId = "", transferToId = "";
     decimal transferAmount;
+
+    CreditCard? selectedCreditCard;
+    string selectedCreditCardId = "";
+    string newCreditName = "";
+    decimal newCreditLimit = 0;
+    decimal newCreditOutstanding = 0;
+    int newCreditStatementDay = 25;
+    int newCreditGraceDays = 25;
+    string newCreditColor = "#7E57C2";
+
+    string editCreditName = "";
+    decimal editCreditLimit = 0;
+    decimal editCreditOutstanding = 0;
+    int editCreditStatementDay = 25;
+    int editCreditGraceDays = 25;
+
+    decimal creditTransAmount = 0;
+    string creditTransDesc = "";
+    DateTime creditTransDate = DateTime.Now;
+
+    string creditTransferDirection = "AccountToCredit";
+    string creditTransferAccountId = "";
+    string creditTransferCardId = "";
+    decimal creditTransferAmount = 0;
+    string creditTransferDesc = "";
+    DateTime creditTransferDate = DateTime.Now;
     Transaction selectedTrans = new Transaction();
     string refundAccountId = "";
     bool isIncomeTrans = false;
@@ -378,14 +612,293 @@
     {
         if (string.IsNullOrEmpty(Firebase.CurrentUserId)) { Nav.NavigateTo("/"); return; }
         myData = await Firebase.Load();
+        myData.CreditCards ??= [];
         if (!myData.Accounts.Any()) { await Task.Delay(500); myData = await Firebase.Load(); }
         if (myData.Accounts.Any()) selectedAccountId = myData.Accounts.First().Id;
+        if (myData.CreditCards.Any()) selectedCreditCardId = myData.CreditCards.OrderBy(x => x.SortOrder).First().Id;
 
         if (myData.Accounts.Any(x => x.SortOrder == 0))
         {
             for (int i = 0; i < myData.Accounts.Count; i++) myData.Accounts[i].SortOrder = i;
         }
         InitCats();
+
+        if (myData.CreditCards.Any(x => x.SortOrder == 0))
+        {
+            for (int i = 0; i < myData.CreditCards.Count; i++) myData.CreditCards[i].SortOrder = i;
+        }
+    }
+
+    decimal GetCreditDueSoonAmount(CreditCard cc)
+    {
+        var now = DateTime.Now.Date;
+        var nextDue = GetNextDueDateForCard(cc);
+        if (!nextDue.HasValue) return 0;
+
+        var targetDue = nextDue.Value.Date;
+        return myData.History
+            .Where(x => x.PrimaryCreditCardId == cc.Id
+                && x.CreditDueDate.HasValue
+                && x.CreditDueDate.Value.Date == targetDue
+                && (x.Kind == "CreditExpense" || x.Kind == "CreditTransferOut" || x.Kind == "BillPaidByCredit"))
+            .Sum(x => x.Amount);
+    }
+
+    DateTime? GetNextDueDateForCard(CreditCard cc)
+    {
+        var upcoming = myData.History
+            .Where(x => x.PrimaryCreditCardId == cc.Id && x.CreditDueDate.HasValue && x.CreditDueDate.Value.Date >= DateTime.Now.Date)
+            .OrderBy(x => x.CreditDueDate)
+            .Select(x => x.CreditDueDate)
+            .FirstOrDefault();
+
+        return upcoming;
+    }
+
+    void ShowAddCreditModal()
+    {
+        newCreditName = "";
+        newCreditLimit = 0;
+        newCreditOutstanding = 0;
+        newCreditStatementDay = 25;
+        newCreditGraceDays = 25;
+        newCreditColor = "#7E57C2";
+        isAddCreditModalVisible = true;
+    }
+
+    async Task SaveNewCreditCard()
+    {
+        if (string.IsNullOrWhiteSpace(newCreditName)) return;
+
+        var nextOrder = myData.CreditCards.Any() ? myData.CreditCards.Max(x => x.SortOrder) + 1 : 0;
+        var card = new CreditCard
+        {
+            Name = newCreditName.Trim(),
+            CreditLimit = Math.Max(0, newCreditLimit),
+            OutstandingBalance = Math.Max(0, newCreditOutstanding),
+            StatementDay = CreditCycleHelper.NormalizeDay(newCreditStatementDay),
+            GraceDays = CreditCycleHelper.NormalizeGraceDays(newCreditGraceDays),
+            ColorHex = newCreditColor,
+            SortOrder = nextOrder
+        };
+
+        myData.CreditCards.Add(card);
+        selectedCreditCardId = card.Id;
+
+        if (card.OutstandingBalance > 0)
+        {
+            myData.History.Add(new Transaction
+            {
+                Kind = "CreditAdjustment",
+                Desc = $"Initial outstanding for {card.Name}",
+                Category = "Credit",
+                Amount = card.OutstandingBalance,
+                AmountDisplay = $"-{card.OutstandingBalance:N2}",
+                ColorHex = "#9b59b6",
+                PrimaryCreditCardId = card.Id,
+                PrimaryCreditCardName = card.Name,
+                CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(DateTime.Now, card.StatementDay),
+                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(DateTime.Now, card.StatementDay, card.GraceDays),
+                Date = DateTime.Now
+            });
+        }
+
+        await Firebase.Save(myData);
+        isAddCreditModalVisible = false;
+    }
+
+    void OpenCreditOptions(CreditCard card)
+    {
+        selectedCreditCard = card;
+        selectedCreditCardId = card.Id;
+        isCreditOptionsVisible = true;
+    }
+
+    void PrepareEditCredit()
+    {
+        if (selectedCreditCard == null) return;
+        editCreditName = selectedCreditCard.Name;
+        editCreditLimit = selectedCreditCard.CreditLimit;
+        editCreditOutstanding = selectedCreditCard.OutstandingBalance;
+        editCreditStatementDay = selectedCreditCard.StatementDay;
+        editCreditGraceDays = selectedCreditCard.GraceDays;
+        isEditCreditModalVisible = true;
+    }
+
+    async Task SaveCreditEdits()
+    {
+        if (selectedCreditCard == null) return;
+
+        var oldOutstanding = selectedCreditCard.OutstandingBalance;
+
+        selectedCreditCard.Name = string.IsNullOrWhiteSpace(editCreditName) ? selectedCreditCard.Name : editCreditName.Trim();
+        selectedCreditCard.CreditLimit = Math.Max(0, editCreditLimit);
+        selectedCreditCard.OutstandingBalance = Math.Max(0, editCreditOutstanding);
+        selectedCreditCard.StatementDay = CreditCycleHelper.NormalizeDay(editCreditStatementDay);
+        selectedCreditCard.GraceDays = CreditCycleHelper.NormalizeGraceDays(editCreditGraceDays);
+
+        var delta = selectedCreditCard.OutstandingBalance - oldOutstanding;
+        if (delta != 0)
+        {
+            var isIncrease = delta > 0;
+            var abs = Math.Abs(delta);
+            myData.History.Add(new Transaction
+            {
+                Kind = "CreditAdjustment",
+                Desc = $"Manual adjustment: {selectedCreditCard.Name}",
+                Category = "Credit",
+                Amount = abs,
+                AmountDisplay = isIncrease ? $"-{abs:N2}" : $"+{abs:N2}",
+                ColorHex = "#9b59b6",
+                PrimaryCreditCardId = selectedCreditCard.Id,
+                PrimaryCreditCardName = selectedCreditCard.Name,
+                CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(DateTime.Now, selectedCreditCard.StatementDay),
+                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(DateTime.Now, selectedCreditCard.StatementDay, selectedCreditCard.GraceDays),
+                Date = DateTime.Now
+            });
+        }
+
+        await Firebase.Save(myData);
+        isEditCreditModalVisible = false;
+    }
+
+    async Task ExecuteDeleteCredit()
+    {
+        if (selectedCreditCard == null) return;
+
+        myData.CreditCards.Remove(selectedCreditCard);
+        await Firebase.Save(myData);
+        isDeleteCreditConfirmVisible = false;
+        isCreditOptionsVisible = false;
+    }
+
+    void ShowCreditTransactionModal(bool isPayment)
+    {
+        isCreditPayment = isPayment;
+        creditTransAmount = 0;
+        creditTransDesc = "";
+        creditTransDate = DateTime.Now;
+        if (selectedCreditCard != null) selectedCreditCardId = selectedCreditCard.Id;
+        isCreditTransModalVisible = true;
+    }
+
+    async Task SaveCreditTransaction()
+    {
+        if (creditTransAmount <= 0) return;
+
+        var card = myData.CreditCards.FirstOrDefault(x => x.Id == selectedCreditCardId);
+        if (card == null) return;
+
+        if (isCreditPayment)
+        {
+            card.OutstandingBalance -= creditTransAmount;
+            if (card.OutstandingBalance < 0) card.OutstandingBalance = 0;
+        }
+        else
+        {
+            card.OutstandingBalance += creditTransAmount;
+        }
+
+        var statementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransDate, card.StatementDay);
+        var dueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransDate, card.StatementDay, card.GraceDays);
+
+        myData.History.Add(new Transaction
+        {
+            Kind = isCreditPayment ? "CreditPayment" : "CreditExpense",
+            Desc = string.IsNullOrWhiteSpace(creditTransDesc)
+                ? (isCreditPayment ? $"Credit payment: {card.Name}" : $"Credit expense: {card.Name}")
+                : creditTransDesc,
+            Category = "Credit",
+            Amount = creditTransAmount,
+            AmountDisplay = isCreditPayment ? $"+{creditTransAmount:N2}" : $"-{creditTransAmount:N2}",
+            ColorHex = isCreditPayment ? "#2ecc71" : "#e74c3c",
+            PrimaryCreditCardId = card.Id,
+            PrimaryCreditCardName = card.Name,
+            CreditStatementDate = statementDate,
+            CreditDueDate = dueDate,
+            Date = creditTransDate
+        });
+
+        await Firebase.Save(myData);
+        isCreditTransModalVisible = false;
+    }
+
+    void ShowCreditTransferModal()
+    {
+        if (!myData.Accounts.Any() || !myData.CreditCards.Any()) return;
+        creditTransferDirection = "AccountToCredit";
+        creditTransferAccountId = myData.Accounts.First().Id;
+        creditTransferCardId = selectedCreditCard?.Id ?? myData.CreditCards.OrderBy(x => x.SortOrder).First().Id;
+        creditTransferAmount = 0;
+        creditTransferDesc = "";
+        creditTransferDate = DateTime.Now;
+        isCreditTransferModalVisible = true;
+    }
+
+    async Task SaveCreditTransfer()
+    {
+        if (creditTransferAmount <= 0) return;
+
+        var acc = myData.Accounts.FirstOrDefault(x => x.Id == creditTransferAccountId);
+        var card = myData.CreditCards.FirstOrDefault(x => x.Id == creditTransferCardId);
+        if (acc == null || card == null) return;
+
+        if (creditTransferDirection == "AccountToCredit")
+        {
+            if (acc.Balance < creditTransferAmount) return;
+
+            acc.Balance -= creditTransferAmount;
+            card.OutstandingBalance -= creditTransferAmount;
+            if (card.OutstandingBalance < 0) card.OutstandingBalance = 0;
+
+            myData.History.Add(new Transaction
+            {
+                Kind = "CreditTransferIn",
+                Desc = string.IsNullOrWhiteSpace(creditTransferDesc)
+                    ? $"Pay {card.Name} from {acc.Name}"
+                    : creditTransferDesc,
+                Category = "CreditTransfer",
+                Amount = creditTransferAmount,
+                AmountDisplay = $"{creditTransferAmount:N2}",
+                ColorHex = "#3498db",
+                PrimaryAccountId = acc.Id,
+                PrimaryAccountName = acc.Name,
+                TargetCreditCardId = card.Id,
+                TargetCreditCardName = card.Name,
+                CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransferDate, card.StatementDay),
+                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransferDate, card.StatementDay, card.GraceDays),
+                Date = creditTransferDate
+            });
+        }
+        else
+        {
+            if (card.AvailableCredit < creditTransferAmount) return;
+
+            acc.Balance += creditTransferAmount;
+            card.OutstandingBalance += creditTransferAmount;
+
+            myData.History.Add(new Transaction
+            {
+                Kind = "CreditTransferOut",
+                Desc = string.IsNullOrWhiteSpace(creditTransferDesc)
+                    ? $"Cash advance {card.Name} to {acc.Name}"
+                    : creditTransferDesc,
+                Category = "CreditTransfer",
+                Amount = creditTransferAmount,
+                AmountDisplay = $"{creditTransferAmount:N2}",
+                ColorHex = "#8e44ad",
+                PrimaryCreditCardId = card.Id,
+                PrimaryCreditCardName = card.Name,
+                TargetAccountId = acc.Id,
+                TargetAccountName = acc.Name,
+                CreditStatementDate = CreditCycleHelper.GetStatementDateForTransaction(creditTransferDate, card.StatementDay),
+                CreditDueDate = CreditCycleHelper.GetDueDateForTransaction(creditTransferDate, card.StatementDay, card.GraceDays),
+                Date = creditTransferDate
+            });
+        }
+
+        await Firebase.Save(myData);
+        isCreditTransferModalVisible = false;
     }
 
     void InitCats()
@@ -516,11 +1029,26 @@
     {
         if (!string.IsNullOrEmpty(refundAccountId))
         {
-            var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
-            if (acc != null)
+            if (refundAccountId.StartsWith("cc:"))
             {
-                if (isIncomeTrans) acc.Balance -= selectedTrans.Amount;
-                else acc.Balance += selectedTrans.Amount;
+                var ccId = refundAccountId.Replace("cc:", "");
+                var cc = myData.CreditCards.FirstOrDefault(x => x.Id == ccId);
+                if (cc != null)
+                {
+                    if (isIncomeTrans) cc.OutstandingBalance += selectedTrans.Amount;
+                    else cc.OutstandingBalance -= selectedTrans.Amount;
+
+                    if (cc.OutstandingBalance < 0) cc.OutstandingBalance = 0;
+                }
+            }
+            else
+            {
+                var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
+                if (acc != null)
+                {
+                    if (isIncomeTrans) acc.Balance -= selectedTrans.Amount;
+                    else acc.Balance += selectedTrans.Amount;
+                }
             }
         }
         myData.History.Remove(selectedTrans);

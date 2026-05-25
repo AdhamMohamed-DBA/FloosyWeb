@@ -275,7 +275,7 @@
     <AppModal Visible="@isPayModalVisible" Title="@L.T("PayBill")">
         <ChildContent>
             <p>@selectedBillToPay?.Name - @selectedBillToPay?.Amount.ToString("N2")</p>
-            <label>@L.T("FromAccount")</label>
+            <label>Pay Source</label>
             <AppSelect Value="@payFromAccountId"
                        ValueChanged="@(v => payFromAccountId = v)"
                        Options="@PayAccountOptions" />
@@ -344,11 +344,14 @@
         };
 
     IEnumerable<KeyValuePair<string, string>> PayAccountOptions =>
-        myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, $"{a.Name} ({a.Balance:N0})"));
+        myData.Accounts
+            .Select(a => new KeyValuePair<string, string>($"acc:{a.Id}", $"Account • {a.Name} ({a.Balance:N0})"))
+            .Concat(myData.CreditCards.Select(c => new KeyValuePair<string, string>($"cc:{c.Id}", $"Credit • {c.Name} (Avail {c.AvailableCredit:N0})")));
 
     protected override async Task OnInitializedAsync()
     {
         myData = await Firebase.Load();
+        myData.CreditCards ??= [];
         if (!myData.BillCategories.Any()) myData.BillCategories.Add(L.T("Other"));
 
         foreach (var b in myData.Bills)
@@ -556,7 +559,17 @@
     async Task AddCategory() { if (!string.IsNullOrEmpty(newCatName)) { myData.BillCategories.Add(newCatName); await Firebase.Save(myData); newCatName = ""; } }
     async Task DeleteCategory(string c) { myData.BillCategories.Remove(c); await Firebase.Save(myData); }
 
-    void InitiatePayBill(Bill b) { if (!myData.Accounts.Any()) return; selectedBillToPay = b; payFromAccountId = myData.Accounts.First().Id; isPayModalVisible = true; }
+    void InitiatePayBill(Bill b)
+    {
+        if (!myData.Accounts.Any() && !myData.CreditCards.Any()) return;
+
+        selectedBillToPay = b;
+
+        if (myData.Accounts.Any()) payFromAccountId = $"acc:{myData.Accounts.First().Id}";
+        else payFromAccountId = $"cc:{myData.CreditCards.First().Id}";
+
+        isPayModalVisible = true;
+    }
 
     async Task ConfirmPayBill()
     {
@@ -564,9 +577,14 @@
         isPayingBill = true;
         try
         {
-            var acc = myData.Accounts.FirstOrDefault(x => x.Id == payFromAccountId);
-            if (acc != null)
+            if (string.IsNullOrWhiteSpace(payFromAccountId)) return;
+
+            if (payFromAccountId.StartsWith("acc:"))
             {
+                var accountId = payFromAccountId.Replace("acc:", "");
+                var acc = myData.Accounts.FirstOrDefault(x => x.Id == accountId);
+                if (acc == null) return;
+
                 if (acc.Balance < selectedBillToPay.Amount)
                 {
                     // 🔥 Replaced Alert with Custom Modal
@@ -588,8 +606,50 @@
                     PrimaryAccountName = acc.Name,
                     Date = DateTime.Now
                 });
-                selectedBillToPay.IsPaid = true; selectedBillToPay.PaymentDate = DateTime.Now;
-                await Firebase.Save(myData); isPayModalVisible = false;
+
+                selectedBillToPay.IsPaid = true;
+                selectedBillToPay.PaymentDate = DateTime.Now;
+                await Firebase.Save(myData);
+                isPayModalVisible = false;
+            }
+            else if (payFromAccountId.StartsWith("cc:"))
+            {
+                var cardId = payFromAccountId.Replace("cc:", "");
+                var card = myData.CreditCards.FirstOrDefault(x => x.Id == cardId);
+                if (card == null) return;
+
+                if (card.AvailableCredit < selectedBillToPay.Amount)
+                {
+                    messageTitle = L.T("Error");
+                    messageBody = L.T("InsufficientBalance");
+                    isMessageVisible = true;
+                    return;
+                }
+
+                card.OutstandingBalance += selectedBillToPay.Amount;
+
+                var statementDate = CreditCycleHelper.GetStatementDateForTransaction(DateTime.Now, card.StatementDay);
+                var dueDate = CreditCycleHelper.GetDueDateForTransaction(DateTime.Now, card.StatementDay, card.GraceDays);
+
+                myData.History.Add(new Transaction
+                {
+                    Kind = "BillPaidByCredit",
+                    Desc = $"Paid by credit: {selectedBillToPay.Name}",
+                    Category = "Bills",
+                    Amount = selectedBillToPay.Amount,
+                    AmountDisplay = $"-{selectedBillToPay.Amount:N2}",
+                    ColorHex = "#9b59b6",
+                    PrimaryCreditCardId = card.Id,
+                    PrimaryCreditCardName = card.Name,
+                    CreditStatementDate = statementDate,
+                    CreditDueDate = dueDate,
+                    Date = DateTime.Now
+                });
+
+                selectedBillToPay.IsPaid = true;
+                selectedBillToPay.PaymentDate = DateTime.Now;
+                await Firebase.Save(myData);
+                isPayModalVisible = false;
             }
         }
         finally

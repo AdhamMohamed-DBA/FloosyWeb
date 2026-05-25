@@ -154,15 +154,18 @@
 
     IEnumerable<KeyValuePair<string, string>> HistoryEditAccountOptions =>
         new[] { new KeyValuePair<string, string>("", L.T("DontChangeBalanceTextOnly")) }
-        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))));
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))))
+        .Concat(myData.CreditCards.Select(cc => new KeyValuePair<string, string>($"cc:{cc.Id}", $"Credit • {cc.Name}")));
 
     IEnumerable<KeyValuePair<string, string>> HistoryDeleteAccountOptions =>
         new[] { new KeyValuePair<string, string>("", L.T("JustDeleteNoRefund")) }
-        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))));
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("Account"))))
+        .Concat(myData.CreditCards.Select(cc => new KeyValuePair<string, string>($"cc:{cc.Id}", $"Credit • {cc.Name}")));
 
     IEnumerable<KeyValuePair<string, string>> HistoryAccountFilterOptions =>
         new[] { new KeyValuePair<string, string>("", L.T("AllAccounts")) }
-        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("UnknownAccount"))));
+        .Concat(myData.Accounts.Select(acc => new KeyValuePair<string, string>(acc.Id, acc.Name ?? L.T("UnknownAccount"))))
+        .Concat(myData.CreditCards.Select(cc => new KeyValuePair<string, string>($"cc:{cc.Id}", $"Credit • {cc.Name}")));
 
     decimal TotalExpensesInView => FilteredTransactions.Where(IsExpenseTransaction).Sum(x => x.Amount);
 
@@ -177,6 +180,7 @@
     protected override async Task OnInitializedAsync()
     {
         myData = await Firebase.Load();
+        myData.CreditCards ??= [];
         selectedMonthStr = FinancialMonthHelper
             .GetFinancialMonthKey(DateTime.Now, FinancialStartDay)
             .ToString("yyyy-MM");
@@ -223,6 +227,13 @@
     {
         if (string.IsNullOrEmpty(selectedAccountFilterId)) return true;
 
+        if (selectedAccountFilterId.StartsWith("cc:"))
+        {
+            var ccId = selectedAccountFilterId.Replace("cc:", "");
+            return string.Equals(t.PrimaryCreditCardId, ccId, StringComparison.Ordinal)
+                || string.Equals(t.TargetCreditCardId, ccId, StringComparison.Ordinal);
+        }
+
         return string.Equals(t.PrimaryAccountId, selectedAccountFilterId, StringComparison.Ordinal)
             || string.Equals(t.TargetAccountId, selectedAccountFilterId, StringComparison.Ordinal);
     }
@@ -233,11 +244,24 @@
 
         return string.Equals(t.Kind, "Expense", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "Bill", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditExpense", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "BillPaidByCredit", StringComparison.OrdinalIgnoreCase);
     }
 
     string GetPrimaryAccountLabel(Transaction t)
     {
+        if (!string.IsNullOrWhiteSpace(t.PrimaryCreditCardName))
+            return $"Credit • {t.PrimaryCreditCardName}";
+
+        if (!string.IsNullOrWhiteSpace(t.PrimaryCreditCardId))
+        {
+            var cc = myData.CreditCards.FirstOrDefault(x => x.Id == t.PrimaryCreditCardId);
+            if (!string.IsNullOrWhiteSpace(cc?.Name))
+                return $"Credit • {cc.Name}";
+        }
+
         if (!string.IsNullOrWhiteSpace(t.PrimaryAccountName))
             return t.PrimaryAccountName;
 
@@ -253,6 +277,16 @@
 
     string GetTargetAccountLabel(Transaction t)
     {
+        if (!string.IsNullOrWhiteSpace(t.TargetCreditCardName))
+            return $"Credit • {t.TargetCreditCardName}";
+
+        if (!string.IsNullOrWhiteSpace(t.TargetCreditCardId))
+        {
+            var cc = myData.CreditCards.FirstOrDefault(x => x.Id == t.TargetCreditCardId);
+            if (!string.IsNullOrWhiteSpace(cc?.Name))
+                return $"Credit • {cc.Name}";
+        }
+
         if (!string.IsNullOrWhiteSpace(t.TargetAccountName))
             return t.TargetAccountName;
 
@@ -269,9 +303,17 @@
     string GetTransactionAccountLine(Transaction t)
     {
         if (string.Equals(t.Kind, "Transfer", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(t.Category, "Transfer", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(t.Category, "Transfer", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditTransferIn", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Category, "CreditTransfer", StringComparison.OrdinalIgnoreCase))
         {
             return $"{L.T("From")} {GetPrimaryAccountLabel(t)} → {L.T("To")} {GetTargetAccountLabel(t)}";
+        }
+
+        if (t.CreditDueDate.HasValue)
+        {
+            return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)} • Due: {t.CreditDueDate.Value:dd MMM yyyy}";
         }
 
         return $"{L.T("SourceAccount")}: {GetPrimaryAccountLabel(t)}";
@@ -305,20 +347,43 @@
 
             if (!string.IsNullOrEmpty(editAccountId))
             {
-                var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
-                if (acc != null)
+                var isCreditTarget = editAccountId.StartsWith("cc:");
+                if (isCreditTarget)
                 {
-                    // Revert old effect
-                    bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
-                    if (wasIncome) acc.Balance -= oldAmount; else acc.Balance += oldAmount;
+                    var ccId = editAccountId.Replace("cc:", "");
+                    var cc = myData.CreditCards.FirstOrDefault(x => x.Id == ccId);
+                    if (cc != null)
+                    {
+                        bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                        if (wasIncome) cc.OutstandingBalance += oldAmount; else cc.OutstandingBalance -= oldAmount;
+                        if (wasIncome) cc.OutstandingBalance -= selectedTrans.Amount; else cc.OutstandingBalance += selectedTrans.Amount;
+                        if (cc.OutstandingBalance < 0) cc.OutstandingBalance = 0;
 
-                    // Apply new effect
-                    // Note: We assume user didn't change sign logic here, just amount.
-                    // Ideally, edit should allow changing Income/Expense type too, but for simplicity:
-                    if (wasIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+                        selectedTrans.PrimaryCreditCardId = cc.Id;
+                        selectedTrans.PrimaryCreditCardName = cc.Name;
+                        selectedTrans.PrimaryAccountId = null;
+                        selectedTrans.PrimaryAccountName = null;
+                    }
+                }
+                else
+                {
+                    var acc = myData.Accounts.FirstOrDefault(x => x.Id == editAccountId);
+                    if (acc != null)
+                    {
+                        // Revert old effect
+                        bool wasIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                        if (wasIncome) acc.Balance -= oldAmount; else acc.Balance += oldAmount;
 
-                    selectedTrans.PrimaryAccountId = acc.Id;
-                    selectedTrans.PrimaryAccountName = acc.Name;
+                        // Apply new effect
+                        // Note: We assume user didn't change sign logic here, just amount.
+                        // Ideally, edit should allow changing Income/Expense type too, but for simplicity:
+                        if (wasIncome) acc.Balance += selectedTrans.Amount; else acc.Balance -= selectedTrans.Amount;
+
+                        selectedTrans.PrimaryAccountId = acc.Id;
+                        selectedTrans.PrimaryAccountName = acc.Name;
+                        selectedTrans.PrimaryCreditCardId = null;
+                        selectedTrans.PrimaryCreditCardName = null;
+                    }
                 }
             }
 
@@ -348,11 +413,27 @@
         {
             if (!string.IsNullOrEmpty(refundAccountId))
             {
-                var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
-                if (acc != null)
+                var isCreditRefund = refundAccountId.StartsWith("cc:");
+                if (isCreditRefund)
                 {
-                    bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
-                    if (isIncome) acc.Balance -= selectedTrans.Amount; else acc.Balance += selectedTrans.Amount;
+                    var ccId = refundAccountId.Replace("cc:", "");
+                    var cc = myData.CreditCards.FirstOrDefault(x => x.Id == ccId);
+                    if (cc != null)
+                    {
+                        bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                        if (isIncome) cc.OutstandingBalance += selectedTrans.Amount;
+                        else cc.OutstandingBalance -= selectedTrans.Amount;
+                        if (cc.OutstandingBalance < 0) cc.OutstandingBalance = 0;
+                    }
+                }
+                else
+                {
+                    var acc = myData.Accounts.FirstOrDefault(x => x.Id == refundAccountId);
+                    if (acc != null)
+                    {
+                        bool isIncome = (selectedTrans.AmountDisplay ?? "").StartsWith("+");
+                        if (isIncome) acc.Balance -= selectedTrans.Amount; else acc.Balance += selectedTrans.Amount;
+                    }
                 }
             }
 

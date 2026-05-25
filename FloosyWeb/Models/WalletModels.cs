@@ -5,6 +5,7 @@ namespace FloosyWeb.Models;
 public class AppData
 {
     public ObservableCollection<Account> Accounts { get; set; } = [];
+    public ObservableCollection<CreditCard> CreditCards { get; set; } = [];
     public ObservableCollection<Bill> Bills { get; set; } = [];
     public ObservableCollection<Transaction> History { get; set; } = [];
 
@@ -46,6 +47,38 @@ public class Account
     public decimal Balance { get; set; }
     public string ColorHex { get; set; } = "#1f1f1f";
     public int SortOrder { get; set; } = 0;
+}
+
+public class CreditCard
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = "";
+
+    /// <summary>
+    /// Total credit limit for this card.
+    /// </summary>
+    public decimal CreditLimit { get; set; }
+
+    /// <summary>
+    /// Current used amount on the card (amount you owe to the bank).
+    /// </summary>
+    public decimal OutstandingBalance { get; set; }
+
+    /// <summary>
+    /// Statement closing day in month. Kept between 1..28 for date safety.
+    /// </summary>
+    public int StatementDay { get; set; } = 25;
+
+    /// <summary>
+    /// Number of days after statement date until payment due date.
+    /// Usually around 20~25 days (55-day style total cycle behavior).
+    /// </summary>
+    public int GraceDays { get; set; } = 25;
+
+    public string ColorHex { get; set; } = "#7E57C2";
+    public int SortOrder { get; set; }
+
+    public decimal AvailableCredit => CreditLimit - OutstandingBalance;
 }
 
 public class Bill
@@ -92,6 +125,22 @@ public class Transaction
     public string? PrimaryAccountName { get; set; }
     public string? TargetAccountId { get; set; }
     public string? TargetAccountName { get; set; }
+
+    // Credit-card metadata (for isolated credit tracking and filtering)
+    public string? PrimaryCreditCardId { get; set; }
+    public string? PrimaryCreditCardName { get; set; }
+    public string? TargetCreditCardId { get; set; }
+    public string? TargetCreditCardName { get; set; }
+
+    /// <summary>
+    /// The statement date this credit transaction belongs to.
+    /// </summary>
+    public DateTime? CreditStatementDate { get; set; }
+
+    /// <summary>
+    /// Due date to pay this credit transaction cycle to avoid interest.
+    /// </summary>
+    public DateTime? CreditDueDate { get; set; }
 
     public DateTime Date { get; set; } = DateTime.Now;
 }
@@ -163,5 +212,44 @@ public static class FinancialMonthHelper
         }
 
         return key;
+    }
+}
+
+public static class CreditCycleHelper
+{
+    public static int NormalizeDay(int day)
+    {
+        if (day < 1) return 1;
+        if (day > 28) return 28;
+        return day;
+    }
+
+    public static int NormalizeGraceDays(int graceDays)
+    {
+        if (graceDays < 0) return 0;
+        if (graceDays > 90) return 90;
+        return graceDays;
+    }
+
+    /// <summary>
+    /// Returns statement date for transaction date.
+    /// If tx day <= statement day => same month statement.
+    /// Else => next month statement.
+    /// </summary>
+    public static DateTime GetStatementDateForTransaction(DateTime transactionDate, int statementDay)
+    {
+        var d = NormalizeDay(statementDay);
+        var sameMonthStatement = new DateTime(transactionDate.Year, transactionDate.Month, d);
+        if (transactionDate.Date <= sameMonthStatement.Date)
+            return sameMonthStatement;
+
+        var nextMonth = transactionDate.AddMonths(1);
+        return new DateTime(nextMonth.Year, nextMonth.Month, d);
+    }
+
+    public static DateTime GetDueDateForTransaction(DateTime transactionDate, int statementDay, int graceDays)
+    {
+        var statementDate = GetStatementDateForTransaction(transactionDate, statementDay);
+        return statementDate.AddDays(NormalizeGraceDays(graceDays));
     }
 }
