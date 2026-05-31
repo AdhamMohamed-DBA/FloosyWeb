@@ -14,6 +14,15 @@
                    OnClick="@(_ => { ShowAddPerson(); return Task.CompletedTask; })" />
     </div>
 
+    <div style="margin-bottom:12px;">
+        <label style="color:gray; font-size:12px;">@L.T("DebtsView")</label>
+        <select @bind="debtListFilter" class="input-dark" style="margin-top:6px;">
+            <option value="Live">@L.T("LiveDebts")</option>
+            <option value="Settled">@L.T("SettledDebts")</option>
+            <option value="All">@L.T("AllDebts")</option>
+        </select>
+    </div>
+
     @if (!PeopleList.Any())
     {
         <div style="text-align:center; padding:30px; color:gray; font-size:13px;">
@@ -268,7 +277,11 @@
 
     // Person lists
     IEnumerable<Person> PeopleList =>
-        myData.People?.OrderBy(p => p.Name) ?? Enumerable.Empty<Person>();
+        (myData.People ?? Enumerable.Empty<Person>())
+            .Where(MatchesDebtFilter)
+            .OrderBy(p => p.Name);
+
+    string debtListFilter = "Live";
 
     IEnumerable<PersonTransaction> RecentPeopleMoves =>
         (myData.PeopleHistory ?? Enumerable.Empty<PersonTransaction>())
@@ -317,6 +330,16 @@
 
     IEnumerable<KeyValuePair<string, string>> DebtAccountOptions =>
         myData.Accounts.Select(a => new KeyValuePair<string, string>(a.Id, a.Name ?? L.T("Account")));
+
+    bool MatchesDebtFilter(Person p)
+    {
+        return debtListFilter switch
+        {
+            "Live" => p.Balance != 0,
+            "Settled" => p.Balance == 0,
+            _ => true
+        };
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -768,6 +791,7 @@
         </div>
     </div>
 }
+
 
 
 

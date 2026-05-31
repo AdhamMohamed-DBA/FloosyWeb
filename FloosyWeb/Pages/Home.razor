@@ -251,6 +251,30 @@
                 }
             </select>
 
+            @if (isCreditPayment)
+            {
+                <label style="color:gray; font-size:12px;">@L.T("PayFromAccount")</label>
+                <select @bind="creditPaymentFromAccountId" class="input-dark">
+                    @foreach (var a in myData.Accounts)
+                    {
+                        <option value="@a.Id">@a.Name</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <label style="color:gray; font-size:12px;">@L.T("Category")</label>
+                <div style="display:flex; gap:5px;">
+                    <select @bind="selectedCreditExpenseCategory" class="input-dark" style="flex:1; margin-bottom:10px;">
+                        @foreach (var c in myData.ExpenseCategories)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                    <button class="icon-btn" style="background:#333; border:none; color:white; border-radius:8px; width:40px; margin-bottom:10px;" @onclick="() => isManageCatsVisible = true" aria-label="Manage categories" title="Manage categories">⚙️</button>
+                </div>
+            }
+
             <input type="number" @bind="creditTransAmount" class="input-dark" placeholder="@L.T("Amount")" />
             <input @bind="creditTransDesc" class="input-dark" placeholder="@L.T("DescriptionOptional")" />
 
@@ -642,6 +666,8 @@
     decimal creditTransAmount = 0;
     string creditTransDesc = "";
     DateTime creditTransDate = DateTime.Now;
+    string selectedCreditExpenseCategory = "";
+    string creditPaymentFromAccountId = "";
 
     string creditTransferDirection = "AccountToCredit";
     string creditTransferAccountId = "";
@@ -873,6 +899,11 @@
         installmentMonths = 12;
         installmentFirstDueDate = DateTime.Now.AddMonths(1);
         if (selectedCreditCard != null) selectedCreditCardId = selectedCreditCard.Id;
+
+        var defaultExpenseCategory = myData.ExpenseCategories.FirstOrDefault();
+        selectedCreditExpenseCategory = defaultExpenseCategory ?? L.T("Other");
+        creditPaymentFromAccountId = myData.Accounts.FirstOrDefault()?.Id ?? "";
+
         isCreditTransModalVisible = true;
     }
 
@@ -883,12 +914,21 @@
         var card = myData.CreditCards.FirstOrDefault(x => x.Id == selectedCreditCardId);
         if (card == null) return;
 
+        Account? paymentSourceAccount = null;
+        if (isCreditPayment)
+        {
+            paymentSourceAccount = myData.Accounts.FirstOrDefault(x => x.Id == creditPaymentFromAccountId);
+            if (paymentSourceAccount == null) return;
+            if (paymentSourceAccount.Balance < creditTransAmount) return;
+        }
+
         var isInstallmentCreditOut = !isCreditPayment && convertCreditOutToInstallment;
         var installmentPlanId = isInstallmentCreditOut ? Guid.NewGuid().ToString() : null;
         var installmentTotalCount = isInstallmentCreditOut ? Math.Clamp(installmentMonths, 1, 120) : (int?)null;
 
         if (isCreditPayment)
         {
+            paymentSourceAccount!.Balance -= creditTransAmount;
             card.OutstandingBalance -= creditTransAmount;
             if (card.OutstandingBalance < 0) card.OutstandingBalance = 0;
         }
@@ -906,12 +946,18 @@
             Desc = string.IsNullOrWhiteSpace(creditTransDesc)
                 ? (isCreditPayment ? $"Credit payment: {card.Name}" : $"Credit expense: {card.Name}")
                 : creditTransDesc,
-            Category = "Credit",
+            Category = isCreditPayment
+                ? "CreditPayment"
+                : (string.IsNullOrWhiteSpace(selectedCreditExpenseCategory) ? L.T("Other") : selectedCreditExpenseCategory),
             Amount = creditTransAmount,
             AmountDisplay = isCreditPayment ? $"+{creditTransAmount:N2}" : $"-{creditTransAmount:N2}",
             ColorHex = isCreditPayment ? "#2ecc71" : "#e74c3c",
             PrimaryCreditCardId = card.Id,
             PrimaryCreditCardName = card.Name,
+            PrimaryAccountId = isCreditPayment ? paymentSourceAccount?.Id : null,
+            PrimaryAccountName = isCreditPayment ? paymentSourceAccount?.Name : null,
+            TargetCreditCardId = isCreditPayment ? card.Id : null,
+            TargetCreditCardName = isCreditPayment ? card.Name : null,
             CreditStatementDate = statementDate,
             CreditDueDate = isInstallmentCreditOut ? null : dueDate,
             IsCreditGraceEligible = !isCreditPayment,

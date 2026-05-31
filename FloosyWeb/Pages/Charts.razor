@@ -188,8 +188,13 @@
         return FinancialMonthHelper.GetFinancialMonthKey(date, FinancialStartDay) == monthKey.Value;
     }
 
-    decimal CurrentIncome => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("+")).Sum(x => x.Amount);
-    decimal CurrentExpense => myData.History.Where(x => IsInFilter(x.Date) && (x.AmountDisplay ?? "").StartsWith("-")).Sum(x => x.Amount);
+    decimal CurrentIncome => myData.History
+        .Where(x => IsInFilter(x.Date) && IsIncomeTransaction(x))
+        .Sum(x => x.Amount);
+
+    decimal CurrentExpense => myData.History
+        .Where(x => IsInFilter(x.Date) && IsExpenseTransaction(x))
+        .Sum(x => x.Amount);
     decimal TotalVolume => CurrentIncome + Math.Abs(CurrentExpense);
     decimal NetAmount => CurrentIncome - Math.Abs(CurrentExpense);
 
@@ -205,11 +210,11 @@
             var prevMonthKey = monthKey.Value.AddMonths(-1);
 
             var prevIncome = myData.History
-                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && (x.AmountDisplay ?? "").StartsWith("+"))
+                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && IsIncomeTransaction(x))
                 .Sum(x => x.Amount);
 
             var prevExpense = myData.History
-                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && (x.AmountDisplay ?? "").StartsWith("-"))
+                .Where(x => FinancialMonthHelper.GetFinancialMonthKey(x.Date, FinancialStartDay) == prevMonthKey && IsExpenseTransaction(x))
                 .Sum(x => x.Amount);
 
             return prevIncome - Math.Abs(prevExpense);
@@ -232,7 +237,9 @@
     {
         get
         {
-            var filtered = myData.History.Where(x => IsInFilter(x.Date) && (isExpense ? (x.AmountDisplay ?? "").StartsWith("-") : (x.AmountDisplay ?? "").StartsWith("+"))).ToList();
+            var filtered = myData.History
+                .Where(x => IsInFilter(x.Date) && (isExpense ? IsExpenseTransaction(x) : IsIncomeTransaction(x)))
+                .ToList();
 
             double total = filtered.Sum(x => (double)x.Amount);
             if (total == 0) return new List<ChartItem>();
@@ -251,7 +258,25 @@
 
         return string.Equals(t.Kind, "Expense", StringComparison.OrdinalIgnoreCase)
             || string.Equals(t.Kind, "Bill", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(t.Kind, "DebtOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditExpense", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "CreditTransferOut", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "BillPaidByCredit", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "InstallmentPayment", StringComparison.OrdinalIgnoreCase);
+    }
+
+    bool IsIncomeTransaction(Transaction t)
+    {
+        if ((t.AmountDisplay ?? string.Empty).StartsWith("+"))
+        {
+            if (string.Equals(t.Kind, "CreditPayment", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
+        }
+
+        return string.Equals(t.Kind, "Income", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(t.Kind, "DebtIn", StringComparison.OrdinalIgnoreCase);
     }
 
     string GetAccountName(Transaction t)
